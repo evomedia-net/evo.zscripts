@@ -1,0 +1,15 @@
+# Local config — contains secrets (EC2 IP, SSH key path, local paths)
+zconfig.json
+
+# Legacy deploy config (superseded by zconfig.json)
+zdeploy.config.json
+
+# Temp zips from deploy (if a temp/ ever lands inside this folder)
+temp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

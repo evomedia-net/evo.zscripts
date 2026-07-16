@@ -1,0 +1,92 @@
+{
+  "_comment": "Copy this file to zconfig.json and fill in your values. zconfig.json is gitignored — never commit it.",
+
+  "ec2": {
+    "ip":        "YOUR_SERVER_IP",
+    "user":      "YOUR_SSH_USER",
+    "pemKey":    "C:\\Users\\YourUser\\.ssh\\YourKey.pem",
+    "stackRoot": "/home/YOUR_SSH_USER/stack"
+  },
+
+  "paths": {
+    "temp":            "C:\\YourRoot\\temp",
+    "backupsLocal":    "C:\\YourRoot\\backups\\projects",
+    "backupsEc2":      "C:\\YourRoot\\backups\\ec2",
+    "scriptsRoot":     "C:\\YourRoot\\zscripts",
+    "oneDriveBackups": ""
+  },
+
+  "projects": {
+    "_comment": "Rename these keys to your own project names — the key IS the command argument: zstart pyapp, zdeploy viteapp, zbackup nextapp. Add as many projects as you like. Keys starting with _ are ignored.",
+
+    "pyapp": {
+      "label":       "My Python App",
+      "kind":        "python",
+      "localRoot":   "C:\\YourRoot\\pyapp",
+      "startModule": "pyapp.main",
+      "ports":       { "dev": 8080 },
+      "domain":      "pyapp.yourdomain.com",
+      "start": {
+        "_comment": "Optional zstart pre-steps: gitPull runs 'git pull --ff-only' first; env sets variables for the server process.",
+        "gitPull": true,
+        "env": { "MYAPP_DEBUG": "1" }
+      },
+      "db":          { "user": "pyapp_user", "name": "pyapp_db" },
+      "remote": {
+        "path":       "/home/YOUR_SSH_USER/stack/pyapp",
+        "composeDir": "/home/YOUR_SSH_USER/stack/pyapp/docker",
+        "appService": "app"
+      },
+      "deploy": { "zipName": "PyAppDeploy.zip", "gitPull": true, "exclude": ["docs"] }
+    },
+
+    "viteapp": {
+      "label":     "My Vite Site",
+      "kind":      "vite",
+      "localRoot": "C:\\YourRoot\\viteapp",
+      "ports":     { "dev": 5173 },
+      "domain":    "www.yourdomain.com",
+      "remote": {
+        "path":          "/home/YOUR_SSH_USER/stack/viteapp",
+        "containerName": "viteapp"
+      },
+      "deploy": { "zipName": "ViteAppDeploy.zip" }
+    },
+
+    "nextapp": {
+      "label":      "My Next.js App",
+      "kind":       "nextjs",
+      "localRoot":  "C:\\YourRoot\\nextapp",
+      "ports":      { "dev": 4173, "prod": 3000 },
+      "domain":     "app.yourdomain.com",
+      "db":         { "user": "nextapp_user", "name": "nextapp_db" },
+      "migrations": "prisma",
+      "remote": {
+        "path":       "/home/YOUR_SSH_USER/stack/nextapp",
+        "appService": "web"
+      },
+      "deploy": { "zipName": "NextAppDeploy.zip" }
+    },
+
+    "edge": {
+      "label":          "Edge Nginx Proxy",
+      "kind":           "edge",
+      "localRoot":      "C:\\YourRoot\\edge",
+      "proxyContainer": "edge_proxy",
+      "certsSource":    "",
+      "remote": {
+        "path": "/home/YOUR_SSH_USER/stack/edge"
+      }
+    },
+
+    "analytics": {
+      "label":     "Analytics (any docker compose app)",
+      "kind":      "docker",
+      "localRoot": "C:\\YourRoot\\analytics",
+      "domain":    "analytics.yourdomain.com",
+      "remote": {
+        "path": "/home/YOUR_SSH_USER/stack/analytics"
+      }
+    }
+  }
+}

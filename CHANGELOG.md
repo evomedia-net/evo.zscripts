@@ -1,0 +1,44 @@
+<!--
+Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+Created by Kelly Michels · dev@evomedia.net
+Licensed under the MIT License. See LICENSE.
+-->
+
+# Changelog
+
+Notable changes to the Evomedia.net Token Savers.
+
+## Unreleased
+
+### Added
+- **`zdeploy` optional `deploy.gitPull`** — `git pull --ff-only` in the
+  project root before zipping. `zdeploy` zips the working tree and doesn't
+  otherwise pull, so a checkout left behind `origin` after a merged PR would
+  deploy stale code while still bumping the build number — success that
+  changes nothing. A failed pull aborts the deploy instead.
+- **Per-project `start` config block** — `zstart` honors optional pre-start
+  steps from `zconfig.json`: `"gitPull": true` runs `git pull --ff-only` in
+  the project root before starting (never boot a stale checkout), and
+  `"env": { ... }` sets environment variables for the dev-server process.
+  Example added to `zconfig.example.json`.
+- **Switch-style argument tolerance** — a leading dash on a project key is
+  ignored everywhere (`zdeploy -myapp` == `zdeploy myapp`), for hands that
+  grew up on per-project switches.
+
+### Changed
+- **`zkill` / port cleanup kills the whole process tree** — listeners on a
+  project's port are now terminated children-first. Auto-reloading servers
+  (uvicorn/watchfiles, nodemon) spawn workers that inherit the listening
+  socket; killing only the parent left orphans serving stale code.
+- **`zbackup` finds `DATABASE_URL` in `backend\.env` too** — projects with a
+  frontend/backend split get their Postgres dump bundled without needing a
+  root-level `.env`.
+
+## 1.0.0
+
+Initial public release: `zstart` / `zkill` / `zrestart` (local dev servers),
+`zdeploy` (zip → upload → compose build → live build-version verification,
+with handlers for python / vite / nextjs / edge / docker project kinds),
+`zec2` / `zec2online` / `zrepair` (health checks and recovery), `zbackup` /
+`zbackup_ec2` / `zsync` (local, server-side, and offsite backups), all driven
+by a single gitignored `zconfig.json`.
