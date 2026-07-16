@@ -215,9 +215,11 @@ zrepair viteapp
 
 ## Daily Token Savings Summary
 
-Per-run × runs/day, using midpoint run counts. The **measured** column is the real
-savings from running scripts yourself; the **est. raw** column approximates what
-Claude would burn orchestrating the same work with no scripts.
+Per-run × runs/day. The per-run figures are **measured**; the daily totals multiply
+them by **assumed typical run counts** (midpoints) — `zdeploy` and `zrestart` at
+10–15/day dominate the sum, so scale the total to your own cadence. The **est. raw**
+column approximates what Claude would burn orchestrating the same work with no
+scripts.
 
 | Script | Measured/run | Runs/day | Measured/day | Est. raw/day |
 |--------|-------------:|:--------:|-------------:|-------------:|
@@ -232,8 +234,9 @@ Claude would burn orchestrating the same work with no scripts.
 | `zrepair` | 364 | 1–2 | ~550 | ~3,000–6,000 |
 | **Total (active dev day)** | | | **~26,500** | **~115,000–295,000** *est.* |
 
-The **~26,500 tokens/day measured** is the honest, reproducible savings from running
-these yourself during an active tool-development day (mostly cached deploys). The
+The **~26,500/day** figure is measured per-run at an assumed typical cadence —
+reproducible on the per-run side, workflow-specific on the multiplier. It reflects an
+active tool-development day of mostly cached deploys. The
 **~115k–295k est.** upper figure is what it would cost to have Claude drive the raw
 `ssh`/`docker` sequences instead — dominated by per-step reasoning on `zdeploy` and
 `zrestart`, not by output volume. Treat that column as an **upper bound, not a

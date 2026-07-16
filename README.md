@@ -8,7 +8,7 @@ Licensed under the MIT License. See LICENSE.
 
 When an AI coding agent orchestrates your infrastructure — starting dev servers, deploying to EC2, diagnosing 502s — it spends hundreds to thousands of tokens per operation on SSH plumbing, Docker output, and retry logic. Those tokens should go to code.
 
-Token Savers gives you short, one-word commands to run those parts yourself: `zdeploy myapp`, `zrepair myapp`, `zstart myapp`. You handle the deterministic infrastructure; your agent handles code. **Running these scripts manually instead of asking your agent to orchestrate them keeps a measured ~26,500 tokens of infrastructure output per active development day out of your agent's context window.** See [TOKEN_SAVINGS.md](TOKEN_SAVINGS.md) for the per-script measurements and method.
+Token Savers gives you short, one-word commands to run those parts yourself: `zdeploy myapp`, `zrepair myapp`, `zstart myapp`. You handle the deterministic infrastructure; your agent handles code. **Running these scripts manually instead of asking your agent to orchestrate them keeps measured script output out of your agent's context window — ~26,500 tokens per active development day at a typical run cadence.** Per-run figures are measured; the daily total applies typical run counts. See [TOKEN_SAVINGS.md](TOKEN_SAVINGS.md) for the numbers and method.
 
 Every command is a tiny PowerShell script driven by a single JSON config file. The project key you define in that config **is** the command argument — add `myapp` to the config and `zstart myapp`, `zdeploy myapp`, `zbackup myapp` all just work, no script edits needed.
 
