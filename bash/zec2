@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zec2 — quick reachability check (TCP + HTTP + live build version) for deployed projects.
+#
+# Usage:
+#   zec2                          # every project with a "domain" in zconfig.json
+#   zec2 <project> [<project> ...]
+#   zec2 viteapp --host 203.0.113.10
+
+set -uo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/zhelpers.sh"
+z_need_config
+z_require curl
+
+projects=(); host_override=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --host) host_override="${2:-}"; shift 2 ;;
+    -*)     err "Unknown option: $1"; exit 1 ;;
+    *)      projects+=("$1"); shift ;;
+  esac
+done
+
+HOST="${host_override:-$(zec2_ip)}"
+
+if [ "${#projects[@]}" -eq 0 ]; then
+  mapfile -t projects < <(zproj_keys_with_domain)
+  if [ "${#projects[@]}" -eq 0 ]; then
+    warn "No projects with a 'domain' configured in zconfig.json."
+    exit 1
+  fi
+fi
+
+check_reachability() {  # <label> <port> <host-header>
+  local label="$1" port="$2" hh="$3" code
+  printf '\n'; info "=== zec2: $label ==="
+  dim "  Target:  ${HOST}:${port}${hh:+  (Host: $hh)}"
+  printf '\n'
+
+  warn "  [1/2] TCP connect to port ${port}..."
+  if tcp_check "$HOST" "$port"; then
+    ok "    OK - port ${port} is open (TCP succeeded)"
+  else
+    err "    FAIL - port ${port} did not accept TCP (check firewall/security group + app on the server)"
+    return 1
+  fi
+
+  warn "  [2/2] HTTP GET http://${HOST}:${port}/ ..."
+  code="$(http_code "http://${HOST}:${port}/" "$hh")"
+  if [ "$code" = "000" ]; then
+    err "    FAIL - no HTTP response (connection dropped or timed out)"
+    return 1
+  elif [ "$code" -lt 400 ]; then
+    ok "    OK - HTTP $code"
+  else
+    warn "    HTTP response: $code (connection worked; app may redirect or require auth)"
+  fi
+
+  printf '\n'; info "  Done ($label)."
+  return 0
+}
+
+show_live_version() {  # <key>
+  local label
+  label="$(remote_version_label "$1" "$HOST")"
+  [ "$label" != "unknown" ] && dim "    Live build: $label" \
+    || dim "    (Could not read live version endpoint - see 'Enabling deploy verification' in README)"
+}
+
+exit_code=0
+for key in "${projects[@]}"; do
+  zproj_require "$key"
+  domain="$(zproj "$key" .domain)"
+  if [ -z "$domain" ]; then
+    printf '\n'; warn "Skipping '$key' - no domain configured."
+    continue
+  fi
+  label="$(zproj "$key" .label)"; [ -n "$label" ] || label="$key"
+  if check_reachability "$label" 80 "$domain"; then
+    show_live_version "$key"
+  else
+    exit_code=1
+  fi
+done
+
+printf '\n'
+info "If TCP fails: open inbound TCP in the server's firewall/security group."
+info "If TCP OK but HTTP fails: SSH in and check docker/nginx (curl -sI http://127.0.0.1/)."
+printf '\n'
+exit "$exit_code"

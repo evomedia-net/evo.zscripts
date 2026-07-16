@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zbackup_and_sync — run backups, then sync the backups folder offsite.
+#
+# Usage:
+#   zbackup_and_sync                          # backup everything + sync
+#   zbackup_and_sync <project> [<project> ...]
+#
+# Cron example (see setup_backup_schedule):
+#   0 2 * * *  /path/to/zscripts/bash/zbackup_and_sync >> ~/zbackup.log 2>&1
+
+set -uo pipefail
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_HERE/zhelpers.sh"
+z_need_config
+
+printf '\n'
+info "============================================"
+info "   Backup & Sync - $(date '+%Y-%m-%d %H:%M:%S')"
+info "============================================"
+printf '\n'
+
+warn "[1/2] Running backups..."
+"$_HERE/zbackup" "$@"
+backup_rc=$?
+if [ $backup_rc -ne 0 ]; then
+  err "Backup failed (exit code: $backup_rc)"
+  exit $backup_rc
+fi
+
+printf '\n'; warn "[2/2] Syncing offsite..."
+"$_HERE/zsync"
+sync_rc=$?
+
+printf '\n'
+info "============================================"
+if [ $sync_rc -eq 0 ]; then
+  ok "      Backup & Sync Complete [OK]"
+else
+  warn "      Sync had issues (exit code: $sync_rc)"
+fi
+info "============================================"
+printf '\n'
+exit $sync_rc

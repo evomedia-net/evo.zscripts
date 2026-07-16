@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# setup_backup_schedule — schedule daily zbackup_and_sync via cron.
+# (The PowerShell version creates a Windows Scheduled Task; this is the cron equivalent.)
+#
+# Usage:
+#   setup_backup_schedule              # print the crontab line to add
+#   setup_backup_schedule --install    # append it to your crontab (2:00 AM daily)
+#   setup_backup_schedule --time 03:30 --install
+
+set -uo pipefail
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_HERE/zhelpers.sh"
+
+install=0; at_time="02:00"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --install) install=1; shift ;;
+    --time)    at_time="${2:-02:00}"; shift 2 ;;
+    *)         err "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+hh="${at_time%%:*}"; mm="${at_time##*:}"
+if ! [[ "$hh" =~ ^[0-9]{1,2}$ && "$mm" =~ ^[0-9]{2}$ ]] || [ "$hh" -gt 23 ] || [ "$mm" -gt 59 ]; then
+  err "Invalid --time '$at_time' (expected HH:MM, 24h)"; exit 1
+fi
+
+cron_line="${mm#0} ${hh#0} * * * $_HERE/zbackup_and_sync >> \$HOME/zbackup_and_sync.log 2>&1"
+
+info "=== Backup schedule (cron) ==="
+dim  "Daily at $at_time:"
+printf '\n  %s\n\n' "$cron_line"
+
+if [ "$install" -eq 1 ]; then
+  z_require crontab
+  if crontab -l 2>/dev/null | grep -qF "$_HERE/zbackup_and_sync"; then
+    warn "A crontab entry for zbackup_and_sync already exists - not adding a duplicate."
+    dim  "Edit it with: crontab -e"
+    exit 0
+  fi
+  ( crontab -l 2>/dev/null; printf '%s\n' "$cron_line" ) | crontab - \
+    || { err "Failed to update crontab."; exit 1; }
+  ok "Installed. Verify with: crontab -l"
+else
+  dim "Run with --install to add it to your crontab, or add it manually with: crontab -e"
+fi

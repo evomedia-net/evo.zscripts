@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zrestart — kill then restart dev servers for any project in zconfig.json.
+#
+# Usage:
+#   zrestart <project> [<project> ...] [--port N] [--kill-all] [--no-restart] [--detached] [--bind-host host]
+
+set -uo pipefail
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_HERE/zhelpers.sh"
+z_need_config
+
+projects=(); port_override=0; kill_all=0; no_restart=0; detached=0; bind_host="127.0.0.1"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p|--port)     port_override="${2:-0}"; shift 2 ;;
+    --kill-all)    kill_all=1; shift ;;
+    --no-restart)  no_restart=1; shift ;;
+    -d|--detached) detached=1; shift ;;
+    --bind-host)   bind_host="${2:-127.0.0.1}"; shift 2 ;;
+    -*)            err "Unknown option: $1"; exit 1 ;;
+    *)             projects+=("$1"); shift ;;
+  esac
+done
+
+if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zrestart <project> [<project> ...] [--port N] [--kill-all] [--no-restart] [--detached] [--bind-host host]"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  exit 1
+fi
+
+printf '\n'; info "=== zrestart ==="
+
+for key in "${projects[@]}"; do
+  info "--- $key ---"
+
+  kill_args=("$key")
+  [ "$port_override" -gt 0 ] 2>/dev/null && kill_args+=(--port "$port_override")
+  [ "$kill_all" -eq 1 ] && kill_args+=(--kill-all)
+  "$_HERE/zkill" "${kill_args[@]}" || exit $?
+
+  if [ "$no_restart" -eq 0 ]; then
+    sleep 1
+    start_args=("$key")
+    [ "$port_override" -gt 0 ] 2>/dev/null && start_args+=(--port "$port_override")
+    [ "$bind_host" != "127.0.0.1" ] && start_args+=(--bind-host "$bind_host")
+    [ "$detached" -eq 1 ] && start_args+=(--detached)
+    "$_HERE/zstart" "${start_args[@]}" || exit $?
+  fi
+done
