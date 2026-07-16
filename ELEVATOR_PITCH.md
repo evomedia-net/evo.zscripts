@@ -12,11 +12,11 @@ Licensed under the MIT License. See LICENSE.
 
 ## The 30-second version
 
-Every time you ask an AI coding agent to deploy your app, it burns 15,000–35,000 tokens reading Docker build output, SSH logs, and health-check responses — before writing a single line of code. Do that 10–15 times a day on a rapid dev cycle and you've spent $1.41–$16 just on infrastructure chatter (Sonnet 5 to Fable 5), plus context window space that should go to your actual problem.
+Every time your AI coding agent runs your infrastructure for you — a deploy, a restart, a health check — the full output lands in its context window: Docker layers, SSH banners, health-check chatter. We measured it: an active dev day pushes **~26,500 tokens of pure script output** through the agent, and a single full Docker rebuild adds ~35,000 more. The dollars are small; the context is not — every line of infrastructure noise crowds out the code your agent is supposed to be reasoning about.
 
 Token Savers collapses the infrastructure side into short, one-word commands you run yourself: `zdeploy myapp`, `zrepair myapp`, `zstart myapp`. Describe each project once in `zconfig.json` — where it lives, what kind it is, where it deploys — and every command just knows. You run the deploy; your agent edits the code. You run the health check; your agent reads the result and fixes whatever's wrong.
 
-**Estimated savings: 157,000–540,000 tokens per active development day.** See [TOKEN_SAVINGS.md](TOKEN_SAVINGS.md) for the per-script breakdown and measurement methodology.
+**Measured: ~26,500 tokens of script output per active development day** — kept out of your agent's context entirely when you run the commands yourself. See [TOKEN_SAVINGS.md](TOKEN_SAVINGS.md) for the per-script measurements and method.
 
 ## Why it's different
 

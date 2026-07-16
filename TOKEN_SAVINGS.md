@@ -29,9 +29,12 @@ Dollar equivalents use a blended input/output rate: **Sonnet 5 ≈ $9/1M** | **O
 > **Measurement note:** "Measured" figures come from `token-count.ps1`, which runs
 > each script under `Start-Transcript` and counts output characters ÷ 3.5
 > chars/token. Captured in **Claude Code (Sonnet 4.6)** against the `sp` project.
-> "Estimated (raw)" figures are *not* measured — they approximate manual
-> orchestration and are marked *est.* throughout. Other models/interfaces tokenize
-> differently.
+> Strictly speaking that's *measured output volume with estimated tokenization*:
+> ÷3.5 is a prose heuristic, and code-heavy output (paths, JSON, container IDs)
+> fragments into **more** tokens per character under a real BPE tokenizer — so the
+> token figures here are likely conservative. "Estimated (raw)" figures are *not*
+> measured — they approximate manual orchestration and are marked *est.*
+> throughout. Other models/interfaces tokenize differently.
 
 ---
 
@@ -233,22 +236,33 @@ The **~26,500 tokens/day measured** is the honest, reproducible savings from run
 these yourself during an active tool-development day (mostly cached deploys). The
 **~115k–295k est.** upper figure is what it would cost to have Claude drive the raw
 `ssh`/`docker` sequences instead — dominated by per-step reasoning on `zdeploy` and
-`zrestart`, not by output volume. A day with several full-rebuild deploys pushes the
-measured figure higher too, since each rebuild streams ~34,600 tokens.
+`zrestart`, not by output volume. Treat that column as an **upper bound, not a
+prediction**: a capable agent asked to deploy might well write its own wrapper
+script and ingest very little — the counterfactual depends entirely on how the
+agent chooses to work. A day with several full-rebuild deploys pushes the measured
+figure higher too, since each rebuild streams ~34,600 tokens.
 
 **Daily dollar savings during active tool development:**
 
-| Model | Blended rate | Measured/day | Est. raw/day (no scripts) |
-|-------|-------------|-------------:|--------------------------:|
-| **Sonnet 5** | $9/1M | ~$0.24 | ~$1.04–$2.66 |
-| **Opus 4.8** | $15/1M | ~$0.40 | ~$1.73–$4.43 |
-| **Fable 5** | $30/1M | ~$0.80 | ~$3.45–$8.85 |
+Script output the agent ingests is billed at **input** rates, so the measured column
+uses input pricing. The est.-raw column keeps the **blended** rate, because raw
+orchestration also generates agent *output* (reasoning and tool calls between steps).
 
-Over a ~22-day working month, the measured savings run **~$5–$17/mo** (Sonnet →
-Fable); the raw-orchestration estimate runs **~$23–$195/mo**. Either way, the
-token-budget point stands: every token saved on infrastructure is a token your agent
-keeps for the actual problem — and that context-window quality is worth more than the
-raw dollar figure suggests.
+| Model | Measured/day @ input rate | Est. raw/day @ blended rate |
+|-------|--------------------------:|----------------------------:|
+| **Sonnet 5** | ~$0.08 ($3/1M) | ~$1.04–$2.66 ($9/1M) |
+| **Opus 4.8** | ~$0.13 ($5/1M) | ~$1.73–$4.43 ($15/1M) |
+| **Fable 5**  | ~$0.27 ($10/1M) | ~$3.45–$8.85 ($30/1M) |
+
+One-time ingest slightly understates the true cost: tokens that enter the context are
+re-sent on every later turn of the session (at cheaper cache-read rates when prompt
+caching applies), so the cumulative figure is somewhat higher than a single ingest.
+
+Over a ~22-day working month, the measured savings run **~$2–$6/mo** (Sonnet →
+Fable); the raw-orchestration estimate runs **~$23–$195/mo**. The honest dollar
+figure is small — the real currency is **context**: every infrastructure token kept
+out of the window is context your agent keeps for the actual problem, and that's
+worth more than the dollars suggest.
 
 ---
 

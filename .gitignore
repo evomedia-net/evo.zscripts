@@ -13,3 +13,6 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# Internal working notes (superseded by TOKEN_SAVINGS.md)
+md/
