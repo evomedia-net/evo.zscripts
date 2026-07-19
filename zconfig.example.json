@@ -43,7 +43,13 @@
         "path": "/health",
         "expect": "\"status\":\"ok\""
       },
-      "deploy": { "zipName": "PyAppDeploy.zip", "gitPull": true, "exclude": ["docs"] }
+      "deploy": {
+        "zipName": "PyAppDeploy.zip",
+        "gitPull": true,
+        "exclude": ["docs"],
+        "_comment": "preserve: server-side files/dirs in the project dir that deploys must never delete (.env* files are always preserved)",
+        "preserve": ["keys", "seed-data"]
+      }
     },
 
     "viteapp": {

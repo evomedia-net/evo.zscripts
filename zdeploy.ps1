@@ -16,8 +16,9 @@
 #   zdeploy all -Note "weekly release"
 #
 # Flow (python/vite/nextjs): zip source -> free server disk space -> scp up ->
-# unzip into remote.path (preserving server-side .env) -> docker compose build + up
-# -> verify the live site reports the new build version. Zips are always deleted.
+# unzip into remote.path (preserving server-side .env* files and anything in
+# deploy.preserve) -> docker compose build + up -> verify the live site reports
+# the new build version. Zips are always deleted.
 #
 # Compose service-name conventions (override with remote.appService):
 #   python kind: app service "app", db service "db"
@@ -139,6 +140,32 @@ function Invoke-RemoteUnzip {
     param([string]$ZipName, [string]$DestPath)
     $bash = 'test -f {2}/{0} || {{ echo "missing {2}/{0}"; exit 2; }}; unzip -t {2}/{0} || exit 3; unzip -o {2}/{0} -d {1}; uc=$?; if [ $uc -gt 1 ]; then exit $uc; fi; exit 0' -f $ZipName, $DestPath, $RemoteHome
     Invoke-Ec2Step "unzip $ZipName" $bash
+}
+
+# ── Operator-file preservation (issue #2) ────────────────────────────────────
+# Deploys replace the project directory wholesale, which used to destroy every
+# operator-managed file except ./.env. These helpers preserve all .env* files
+# at the project root PLUS any paths listed in deploy.preserve (files or
+# directories), by tarring them to the home dir before the wipe and extracting
+# them back after the unzip. Server-side copies win over anything shipped in
+# the zip — the same semantics ./.env always had.
+function Save-OperatorFiles {
+    param([string]$Key, $Proj, [string]$RemotePath)
+    $paths = @('.env*')
+    if ($Proj.deploy -and $Proj.deploy.preserve) { $paths += @($Proj.deploy.preserve) }
+    $spec = $paths -join ' '
+    $tarball = "$RemoteHome/preserve_${Key}.tgz"
+    # NOTE: no embedded quotes or $( ) here - PowerShell 5.1 strips embedded
+    # double quotes when passing args to ssh.exe, silently corrupting the
+    # remote command. Globs expand remotely; tar archives whatever exists
+    # and its nonzero exit for missing paths is deliberately swallowed.
+    Invoke-Ec2Step "preserve operator files ($spec)" "rm -f $tarball; cd $RemotePath && tar -czf $tarball $spec 2>/dev/null; true"
+}
+
+function Restore-OperatorFiles {
+    param([string]$Key, [string]$RemotePath)
+    $tarball = "$RemoteHome/preserve_${Key}.tgz"
+    Invoke-Ec2Step "restore operator files" "test -f $tarball && tar -xzf $tarball -C $RemotePath; rm -f $tarball; true"
 }
 
 # ── Deploy verification (build-version match, not just HTTP 200 — a 200 can be
@@ -284,10 +311,10 @@ function Invoke-PythonDeploy {
         Invoke-Ec2Step "apt-get install unzip" "sudo apt-get update -qq && sudo apt-get install -y unzip"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
-        Invoke-Ec2Step "backup .env if present" "if [ -f $remotePath/.env ]; then cp $remotePath/.env $RemoteHome/.env.${Key}_bak; fi"
+        Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
         Invoke-Ec2Step "replace project directory" "sudo rm -rf $remotePath && sudo mkdir -p $remotePath && sudo chown ${Ec2User}:${Ec2User} $remotePath"
         Invoke-RemoteUnzip -ZipName $zipName -DestPath $remotePath
-        Invoke-Ec2Step "restore .env from backup" "if [ -f $RemoteHome/.env.${Key}_bak ]; then cp $RemoteHome/.env.${Key}_bak $remotePath/.env; fi"
+        Restore-OperatorFiles -Key $Key -RemotePath $remotePath
         Invoke-Ec2Step "require compose directory" "test -d $composeDir"
         Invoke-Ec2Step "docker compose build $appSvc" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose build $appSvc"
         Invoke-Ec2Step "docker compose up -d" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose up -d"
@@ -398,8 +425,10 @@ function Invoke-ViteDeploy {
         Invoke-Ec2Step "apt-get install unzip" "sudo apt-get update -qq && sudo apt-get install -y unzip"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
+        Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
         Invoke-Ec2Step "replace project directory" "sudo rm -rf $remotePath && sudo mkdir -p $remotePath && sudo chown ${Ec2User}:${Ec2User} $remotePath"
         Invoke-RemoteUnzip -ZipName $zipName -DestPath $remotePath
+        Restore-OperatorFiles -Key $Key -RemotePath $remotePath
         Invoke-Ec2Step "require compose file" "test -f $remotePath/docker-compose.yml"
         Invoke-Ec2Step "docker compose build" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose build"
         Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose up -d"
@@ -464,10 +493,10 @@ function Invoke-NextDeploy {
         Invoke-Ec2Step "ensure unzip installed" "sudo apt-get update -qq && sudo apt-get install -y unzip"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
-        Invoke-Ec2Step "backup .env if present" "if [ -f $remotePath/.env ]; then cp $remotePath/.env $RemoteHome/.env.${Key}_bak; fi"
+        Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
         Invoke-Ec2Step "replace project directory" "sudo rm -rf $remotePath && sudo mkdir -p $remotePath && sudo chown ${Ec2User}:${Ec2User} $remotePath"
         Invoke-RemoteUnzip -ZipName $zipName -DestPath $remotePath
-        Invoke-Ec2Step "restore .env from backup" "if [ -f $RemoteHome/.env.${Key}_bak ]; then cp $RemoteHome/.env.${Key}_bak $remotePath/.env; fi"
+        Restore-OperatorFiles -Key $Key -RemotePath $remotePath
 
         Write-Host "`n--- [4] Docker compose rebuild ---" -ForegroundColor Cyan
         Invoke-Ec2Step "docker compose down" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose down"
