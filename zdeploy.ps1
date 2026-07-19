@@ -23,6 +23,13 @@
 #   python kind: app service "app", db service "db"
 #   nextjs kind: app service "web", db service "db"
 #
+# Verification (python kind, when there is no scripts/build_version_tool.py):
+#   Projects with a "verify" block are checked ON the server via
+#   localhost:<port><path> — the only accurate way for stacks that are not
+#   published through the edge proxy. Projects with only a "domain" fall back
+#   to a Host-header request. Projects with neither are reported as NOT
+#   verified rather than passing on the proxy's default vhost.
+#
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Projects = @(),
@@ -204,6 +211,41 @@ function Wait-VerifyApiBuild {
     return $false
 }
 
+# Verify a deploy by calling the app ON the server (localhost:<port>). Works
+# for stacks that are not published through the edge proxy or whose host port
+# is closed to the internet — hitting http://<ec2-ip>/ for those just answers
+# from whatever vhost the proxy serves by default, which is a false PASS.
+#
+# Configure per project in zconfig.json:
+#   "verify": { "port": 8005, "path": "/health", "expect": "\"status\":\"ok\"" }
+# port is required; path defaults to "/", expect is an optional substring.
+function Test-DeployHealth {
+    param([string]$Key, $Proj, [int]$TimeoutSec = 60)
+
+    $port   = [int]$Proj.verify.port
+    $path   = if ($Proj.verify.path) { [string]$Proj.verify.path } else { "/" }
+    $expect = [string]$Proj.verify.expect
+
+    Write-Host "`n--- [$Key] Health check (on server: localhost:$port$path) ---" -ForegroundColor Cyan
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $raw = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "curl -s -m 8 http://localhost:$port$path"
+        $body = ($raw | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and $body) {
+            if (-not $expect -or $body.Contains($expect)) {
+                Write-Host "  PASS - $body" -ForegroundColor Green
+                return $true
+            }
+            Write-Host "  Responding but '$expect' not found - waiting..." -ForegroundColor DarkYellow
+        } else {
+            Write-Host "  Not ready yet - waiting..." -ForegroundColor DarkGray
+        }
+        Start-Sleep -Seconds 3
+    }
+    Write-Host "  WARNING: no healthy response from localhost:$port$path within ${TimeoutSec}s." -ForegroundColor Yellow
+    return $false
+}
+
 # ── Kind handlers ────────────────────────────────────────────────────────────
 
 function Invoke-PythonDeploy {
@@ -278,10 +320,11 @@ function Invoke-PythonDeploy {
             if ($LASTEXITCODE -ne 0) { throw "App restart after build bump failed (exit $LASTEXITCODE)" }
 
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $BuildVersion -TimeoutSec 30 | Out-Null
-        } else {
+        } elseif ($Proj.verify -and $Proj.verify.port) {
+            Test-DeployHealth -Key $Key -Proj $Proj -TimeoutSec 60 | Out-Null
+        } elseif ($Proj.domain) {
             Write-Host "`n--- [4] Basic reachability check (no build_version_tool - see 'Enabling deploy verification' in README) ---" -ForegroundColor Cyan
-            $headers = @{}
-            if ($Proj.domain) { $headers['Host'] = $Proj.domain }
+            $headers = @{ 'Host' = $Proj.domain }
             $deadline = (Get-Date).AddSeconds(30)
             $up = $false
             while ((Get-Date) -lt $deadline) {
@@ -293,6 +336,14 @@ function Invoke-PythonDeploy {
             }
             if ($up) { Write-Host "  App is responding." -ForegroundColor Green }
             else { Write-Host "  WARNING: app did not respond within 30s." -ForegroundColor Yellow }
+        } else {
+            # No domain to send as a Host header and no "verify" block: a request
+            # to http://<ec2-ip>/ would be answered by the proxy's default vhost,
+            # so it proves nothing about THIS app. Say so instead of faking a PASS.
+            Write-Host "`n--- [4] Deploy finished - NOT verified ---" -ForegroundColor Yellow
+            Write-Host "  No 'domain' and no 'verify' block in zconfig.json for '$Key'," -ForegroundColor Yellow
+            Write-Host "  so there is no way to confirm the new build is live." -ForegroundColor Yellow
+            Write-Host '  Add to the project: "verify": { "port": <hostPort>, "path": "/health" }' -ForegroundColor Gray
         }
 
         Invoke-Ec2PostDeployCleanup -Label $Key
