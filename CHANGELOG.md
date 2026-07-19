@@ -11,6 +11,13 @@ Notable changes to the Evomedia.net Token Savers.
 ## Unreleased
 
 ### Added
+- **`zdeploy` server-side health verification (`verify` block)** — projects
+  not published through the edge proxy can declare
+  `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the
+  deploy is checked from the server itself (`curl localhost:<port><path>`
+  over SSH) instead of hitting the public IP. Fixes a false PASS where the
+  proxy's default vhost answered for apps that never started; projects
+  with neither `domain` nor `verify` are now reported as NOT verified.
 - **`zdeploy` optional `deploy.gitPull`** — `git pull --ff-only` in the
   project root before zipping. `zdeploy` zips the working tree and doesn't
   otherwise pull, so a checkout left behind `origin` after a merged PR would

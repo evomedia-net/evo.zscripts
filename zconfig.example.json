@@ -37,6 +37,12 @@
         "composeDir": "/home/YOUR_SSH_USER/stack/pyapp/docker",
         "appService": "app"
       },
+      "verify": {
+        "_comment": "Optional: after deploy, curl this ON the server (localhost:port+path) and require the substring. The accurate check for apps not published through the edge proxy.",
+        "port": 8080,
+        "path": "/health",
+        "expect": "\"status\":\"ok\""
+      },
       "deploy": { "zipName": "PyAppDeploy.zip", "gitPull": true, "exclude": ["docs"] }
     },
 

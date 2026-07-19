@@ -338,6 +338,18 @@ def build_version():
 
 Python projects can go further with a `scripts/build_version_tool.py` supporting `get` / `set` / `bump` subcommands — if present, `zdeploy` bumps the version inside the running container, records it, and `zstart` bumps on every dev start.
 
+### Alternative: server-side health check (`verify` block)
+
+Not every stack is published through the edge proxy — internal APIs, apps whose host port the firewall blocks, services waiting on a DNS record. For those, the old fallback (`GET http://<server-ip>/`) was worse than nothing: the edge proxy's *default vhost* answers with a 200 and the deploy "passes" even if your app never started.
+
+Give the project a `verify` block instead, and `zdeploy` checks the app **from the server itself** over SSH:
+
+```json
+"verify": { "port": 8005, "path": "/health", "expect": "\"status\":\"ok\"" }
+```
+
+`port` is the host port the app publishes on the server; `path` defaults to `/`; `expect` is an optional substring the response must contain (an app version string makes this equivalent to build-number verification). Python-kind projects use `verify` automatically when there's no `build_version_tool.py` — and projects with *neither* a `domain` nor a `verify` block are now honestly reported as **NOT verified** instead of green-lighting the proxy's default page.
+
 `zec2` and `zec2online` use these same endpoints to show what's live and flag local/server version drift.
 
 ---
