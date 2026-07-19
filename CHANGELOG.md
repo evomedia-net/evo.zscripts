@@ -10,6 +10,17 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+### Fixed
+- **`zdeploy` no longer deletes operator-managed files on deploy** (#2) —
+  the project-directory replacement preserved only `./.env`, silently
+  destroying every other server-side file (`.env.db`, staged signing
+  keys, certs) on every deploy. All `.env*` files at the project root are
+  now preserved by default, plus anything listed in the new
+  `deploy.preserve` array (files or directories); the vite kind, which
+  previously preserved nothing, gets the same protection. Found the hard
+  way: a first production deploy of an auth service wiped its staged DB
+  credentials and RSA signing keys.
+
 ### Added
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
