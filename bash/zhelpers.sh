@@ -237,3 +237,77 @@ kill_listeners() {
   done
   printf '%s' "$n"
 }
+
+# ---- output tracking (ztokens) ----------------------------------------------
+# Mirrors the PowerShell Start-/Stop-ZTracking + tokens.jsonl feed: capture this
+# script's own output volume, print the "--- N lines / N chars / ~N tokens ---"
+# footer, and append one JSONL record per top-level run. Nested z-scripts (e.g.
+# zkill/zstart under zrestart) inherit the capture and do NOT double-count.
+# Call `z_track_start "$@"` once near the top; an EXIT trap covers every exit.
+z_track_start() {
+  [ "${Z_TRACK_ACTIVE:-0}" = "1" ] && return          # nested under another z-script
+  command -v mktemp >/dev/null 2>&1 || return
+  export Z_TRACK_ACTIVE=1
+  Z_TRACK_SCRIPT="$(basename "$0")"
+  Z_TRACK_ARGS="$*"
+  Z_TRACK_FILE="$(mktemp "${TMPDIR:-/tmp}/ztrack.XXXXXX")" || { Z_TRACK_FILE=""; return; }
+  Z_TRACK_FIFO="${Z_TRACK_FILE}.fifo"
+  if ! mkfifo "$Z_TRACK_FIFO" 2>/dev/null; then rm -f "$Z_TRACK_FILE"; Z_TRACK_FILE=""; return; fi
+  # tee copies the FIFO to the log file while still showing output on the terminal.
+  tee "$Z_TRACK_FILE" < "$Z_TRACK_FIFO" &
+  Z_TRACK_TEE=$!
+  exec 3>&1 4>&2 >"$Z_TRACK_FIFO" 2>&1
+  trap z_track_stop EXIT
+}
+
+z_track_stop() {
+  set +e                                               # never let cleanup abort mid-way
+  [ -n "${Z_TRACK_FILE:-}" ] || return
+  exec 1>&3 2>&4 3>&- 4>&-                              # restore stdout/stderr, close the pipe
+  [ -n "${Z_TRACK_TEE:-}" ] && wait "$Z_TRACK_TEE" 2>/dev/null
+  rm -f "${Z_TRACK_FIFO:-}" 2>/dev/null
+
+  local esc plain lines chars tok
+  esc=$'\033'
+  plain="${Z_TRACK_FILE}.plain"
+  sed "s/${esc}\[[0-9;]*m//g" "$Z_TRACK_FILE" > "$plain" 2>/dev/null || cp "$Z_TRACK_FILE" "$plain" 2>/dev/null
+  lines="$(grep -cve '^[[:space:]]*$' "$plain" 2>/dev/null)"; [ -n "$lines" ] || lines=0
+  chars="$(wc -m < "$plain" 2>/dev/null | tr -d ' ')";      [ -n "$chars" ] || chars=0
+  tok="$(awk -v c="$chars" 'BEGIN{printf "%d", int(c/3.5 + 0.5)}')"
+
+  printf '\n%s--- %s lines / %s chars / ~%s tokens est. (Claude Code) ---%s\n' \
+    "${C_GRAY:-}" "$(_z_commafy "$lines")" "$(_z_commafy "$chars")" "$(_z_commafy "$tok")" "${C_RESET:-}"
+
+  z_record "$lines" "$chars" "$tok"
+  rm -f "$Z_TRACK_FILE" "$plain" 2>/dev/null
+  Z_TRACK_FILE=""
+}
+
+# Portable thousands separators (avoids locale-dependent printf %'d).
+_z_commafy() { printf '%s' "$1" | sed -E ':a;s/([0-9])([0-9]{3})($|[^0-9])/\1,\2\3/;ta'; }
+
+# Append a run to the ztokens JSONL store. Data dir precedence: $ZTOKENS_DATA,
+# then config "ztokens.dataDir", then the sibling ../../ztokens/data if present
+# (dev layout), else ~/.ztokens/data. No-op without jq. Model tag is
+# $ZTOKENS_MODEL or "est. chars/3.5".
+z_record() {  # <lines> <chars> <est>
+  command -v jq >/dev/null 2>&1 || return
+  local lines="$1" chars="$2" est="$3" dir model projects
+  dir="${ZTOKENS_DATA:-}"
+  [ -z "$dir" ] && [ -f "$ZCONFIG" ] && dir="$(jq -r '.ztokens.dataDir // empty' "$ZCONFIG" 2>/dev/null)"
+  if [ -z "$dir" ]; then
+    if [ -d "$_ZDIR/../../ztokens/data" ]; then dir="$_ZDIR/../../ztokens/data"; else dir="$HOME/.ztokens/data"; fi
+  fi
+  mkdir -p "$dir" 2>/dev/null || return
+  model="${ZTOKENS_MODEL:-est. chars/3.5}"
+  projects=""
+  [ -n "${Z_TRACK_ARGS:-}" ] && projects="$(printf '%s\n' $Z_TRACK_ARGS | grep -v '^-' | paste -sd',' - 2>/dev/null)"
+  jq -cn \
+    --arg ts "$(date +%Y-%m-%dT%H:%M:%S%z)" \
+    --arg script "${Z_TRACK_SCRIPT%.*}" \
+    --arg projects "$projects" \
+    --argjson lines "${lines:-0}" --argjson chars "${chars:-0}" --argjson est "${est:-0}" \
+    --arg model "$model" \
+    '{ts:$ts,script:$script,projects:$projects,lines:$lines,chars:$chars,est:$est,model:$model}' \
+    >> "$dir/tokens.jsonl" 2>/dev/null
+}
