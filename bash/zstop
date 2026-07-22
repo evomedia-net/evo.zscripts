@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zstop — stop docker compose stacks on the server without removing data or files.
+#
+# Usage:
+#   zstop <project> [<project> ...]
+#
+# Data volumes are preserved. Run zdeploy <project> to bring a stack back up.
+
+set -uo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/zhelpers.sh"
+z_track_start "$@"
+z_need_config
+z_require ssh
+
+if [ $# -eq 0 ]; then
+  printf '\n'; warn "Usage: zstop <project> [<project> ...]"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  exit 1
+fi
+
+for key in "$@"; do
+  zproj_require "$key"
+  label="$(zproj "$key" .label)"; [ -n "$label" ] || label="$key"
+  compose_dir="$(zremote_compose_dir "$key")"
+
+  printf '\n'; info "--- Stopping $label ---"
+  if zssh "cd $compose_dir && sudo docker compose down 2>&1 || true"; then
+    ok "  $label stopped."
+  else
+    warn "  WARNING: docker compose down returned non-zero for $label"
+  fi
+done
+
+printf '\n'; dim "Done. Data volumes are intact. Run zdeploy <project> to restart."

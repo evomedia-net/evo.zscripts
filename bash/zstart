@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zstart — start local dev servers for any project defined in zconfig.json.
+#
+# Usage:
+#   zstart <project> [<project> ...] [--port N] [--bind-host host] [--detached]
+#
+# Handlers by kind: python (python -m <startModule>, prefers .venv),
+# vite (npm run dev -- --host --port), nextjs (npm run dev with PORT).
+# Detached servers log to /tmp/zstart-<project>.log ; stop them with zkill.
+
+set -uo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/zhelpers.sh"
+z_track_start "$@"
+z_need_config
+
+projects=(); port_override=0; bind_host="127.0.0.1"; detached=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p|--port)     port_override="${2:-0}"; shift 2 ;;
+    --bind-host)   bind_host="${2:-127.0.0.1}"; shift 2 ;;
+    -d|--detached) detached=1; shift ;;
+    -*)            err "Unknown option: $1"; exit 1 ;;
+    *)             projects+=("$1"); shift ;;
+  esac
+done
+
+if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zstart <project> [<project> ...] [--port N] [--detached] [--bind-host host]"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  exit 1
+fi
+
+warn_if_privileged_port() {  # <port>
+  if [ "$1" -lt 1024 ] && [ "$(id -u)" -ne 0 ]; then
+    err "WARNING: Port $1 requires root privileges to bind. Run with sudo!"
+  fi
+}
+
+detach() {  # <key> <workdir> <cmd...>
+  local key="$1" dir="$2"; shift 2
+  local log="/tmp/zstart-${key}.log"
+  ( cd "$dir" && nohup "$@" >"$log" 2>&1 & )
+  ok "Started in detached mode (logs: $log)."
+  dim "Use zkill $key to stop it."
+}
+
+# Optional per-project pre-start steps from zconfig.json:
+#   "start": { "gitPull": true, "env": { "SOME_FLAG": "1" } }
+start_prep() {  # <key>
+  local key="$1" root kv name val
+  root="$(zproj "$key" .localRoot)"
+  while IFS=$'\t' read -r name val; do
+    [ -n "$name" ] || continue
+    export "$name=$val"
+    dim "  env $name=$val"
+  done < <(jq -r --arg k "$key" '.projects[$k].start.env // {} | to_entries[] | "\(.key)\t\(.value)"' "$ZCONFIG")
+  if [ "$(zproj "$key" .start.gitPull)" = "true" ] && [ -d "$root/.git" ]; then
+    local last
+    last="$( (cd "$root" && git pull --ff-only 2>&1) | tail -1 )"
+    dim "  git pull: $last"
+    (cd "$root" && git rev-parse HEAD >/dev/null 2>&1) || warn "  Auto-pull failed - run 'git pull' manually if needed."
+  fi
+}
+
+start_python() {  # <key> <port>
+  local key="$1" port="$2" root module exe bv=""
+  root="$(zproj "$key" .localRoot)"
+  module="$(zproj "$key" .startModule)"
+  [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
+  [ -n "$module" ] || { err "Project '$key' (kind=python) needs 'startModule' in zconfig.json (e.g. \"startModule\": \"pyapp.main\")."; return 1; }
+
+  # Prefer the project venv. The Scripts/python.exe branch is a *Windows* venv
+  # layout — only runnable from a Windows-family shell (Git Bash/MSYS/Cygwin).
+  # On WSL/Linux/macOS a Windows-built venv may sit on a mounted drive and look
+  # executable but can't exec, so guard that branch to fall through to python3.
+  if   [ -x "$root/.venv/bin/python" ];        then exe="$root/.venv/bin/python"
+  elif [ -x "$root/.venv/Scripts/python.exe" ] && [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then exe="$root/.venv/Scripts/python.exe"
+  elif command -v python3 >/dev/null 2>&1;      then exe="python3"
+  else exe="python"; fi
+
+  # Optional convention: scripts/build_version_tool.py bumps the version on dev start.
+  if [ -f "$root/scripts/build_version_tool.py" ]; then
+    bv="$(cd "$root" && "$exe" scripts/build_version_tool.py bump 2>/dev/null | tail -1)"
+    [ -n "$bv" ] || bv="$(cd "$root" && "$exe" scripts/build_version_tool.py get 2>/dev/null | tail -1)"
+  fi
+
+  printf '\n'; info "=== zstart ($(zproj "$key" .label)) ==="
+  info "Starting python -m $module on port $port..."
+  [ -n "$bv" ] && note "Build Version: $bv"
+  show_project_motd "$root"
+  dim "Press Ctrl+C to stop the server"
+  warn_if_privileged_port "$port"
+  printf '\n'
+
+  if [ "$detached" -eq 1 ]; then
+    detach "$key" "$root" "$exe" -m "$module"
+  else
+    ( cd "$root" && exec "$exe" -m "$module" )
+  fi
+}
+
+start_vite() {  # <key> <port>
+  local key="$1" port="$2" root
+  root="$(zproj "$key" .localRoot)"
+  [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
+  [ -f "$root/package.json" ] || { err "package.json not found in $root"; return 1; }
+
+  printf '\n'; info "=== zstart ($(zproj "$key" .label) - Vite) ==="
+  dim "Directory: $root"
+  info "URL: http://${bind_host}:${port}/"
+  printf '\n'
+
+  if [ ! -d "$root/node_modules" ]; then
+    warn "node_modules missing - running npm install..."
+    (cd "$root" && npm install) || { err "npm install failed"; return 1; }
+  fi
+
+  show_project_motd "$root"
+  dim "Press Ctrl+C to stop the dev server"
+  warn_if_privileged_port "$port"
+  printf '\n'
+
+  if [ "$detached" -eq 1 ]; then
+    detach "$key" "$root" npm run dev -- --host "$bind_host" --port "$port"
+  else
+    ( cd "$root" && exec npm run dev -- --host "$bind_host" --port "$port" )
+  fi
+}
+
+start_next() {  # <key> <port>
+  local key="$1" port="$2" root
+  root="$(zproj "$key" .localRoot)"
+  [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
+  [ -f "$root/package.json" ] || { err "package.json not found in $root"; return 1; }
+
+  printf '\n'; info "=== zstart ($(zproj "$key" .label) - Next.js) ==="
+  info "Starting on port $port..."
+  printf '\n'
+  show_project_motd "$root"
+  dim "Press Ctrl+C to stop the server"
+  warn_if_privileged_port "$port"
+  printf '\n'
+
+  export PORT="$port"
+  if [ "$detached" -eq 1 ]; then
+    detach "$key" "$root" npm run dev
+  else
+    ( cd "$root" && exec npm run dev )
+  fi
+}
+
+rc=0
+for key in "${projects[@]}"; do
+  zproj_require "$key"
+  kind="$(zproj "$key" .kind)"
+  if [ "$port_override" -gt 0 ] 2>/dev/null; then port="$port_override"
+  else port="$(zproj "$key" .ports.dev)"; [[ "$port" =~ ^[0-9]+$ ]] || port=3000; fi
+
+  start_prep "$key"
+
+  case "$kind" in
+    python) start_python "$key" "$port" || rc=1 ;;
+    vite)   start_vite   "$key" "$port" || rc=1 ;;
+    nextjs) start_next   "$key" "$port" || rc=1 ;;
+    *)
+      printf '\n'
+      warn "Project '$key' has kind '$kind' - no local dev server to start."
+      dim "Supported kinds for zstart: python, vite, nextjs"
+      ;;
+  esac
+done
+exit "$rc"

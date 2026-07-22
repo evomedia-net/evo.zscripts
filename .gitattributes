@@ -1,0 +1,6 @@
+# Bash scripts must stay LF — CRLF breaks the shebang on Linux/macOS/WSL.
+bash/** text eol=lf
+
+# PowerShell/cmd are happiest with CRLF on Windows.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf

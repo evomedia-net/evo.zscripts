@@ -14,6 +14,8 @@ Every command is a tiny PowerShell script driven by a single JSON config file. T
 
 **Requirements:** Windows, PowerShell 5.1+, OpenSSH client (`ssh`/`scp`, ships with Windows 10/11), and Docker + docker compose on the remote host for the deploy scripts.
 
+**Linux / macOS / WSL:** a native bash port of every command lives in [`bash/`](bash/README.md) — same config schema, same commands, no PowerShell needed.
+
 ---
 
 ## Install
@@ -120,7 +122,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zec2 [<key> ...]` | Quick reachability check (TCP + HTTP + live build version) |
 | `zec2online [<key> ...]` | Deep health check; auto-starts downed stacks, streams diagnostics |
 | `zrepair <key> ...` | Audit + repair compose/proxy state on the server |
-| `zbackup [<key> ...]` | Zip local project sources (+ DB dump) to the backups folder |
+| `zbackup <key> ... \| all` | Zip local project sources (+ DB dump) to the backups folder |
 | `zbackup_ec2 [<key> ...]` | Pull DB dumps + server-side data files down from the server |
 | `zsync [<key>]` | Copy new backups offsite (or build + mirror a vite dist) |
 | `zstart_docker` | Run a local docker compose stack from `scriptsRoot\docker\` |
@@ -224,14 +226,15 @@ zstop <project> [<project> ...]
 #### `zbackup` — local backups
 
 ```
-zbackup [<project> ...] [-Tag "label"]     # no args = every project + this scripts folder
+zbackup <project> [<project> ...] [-Tag "label"]
+zbackup all                                # every project + this scripts folder
 zbackup scripts                            # just this scripts folder ('scripts' is reserved)
 ```
 
-Zips each project's source into `paths.backupsLocal\<key>\<timestamp>_<key>[_tag].zip`. If the project's `.env` declares a `DATABASE_URL`, a Postgres dump is bundled into the zip automatically (`backend\.env` is checked too, for frontend/backend split projects). `-Tag` labels the archive — handy before risky changes.
+Zips each project's source into `paths.backupsLocal\<key>\<timestamp>_<key>[_tag].zip`. If the project's `.env` declares a `DATABASE_URL`, a Postgres dump is bundled into the zip automatically — quoted values (Prisma-style), `postgres://`/`postgresql+driver://` schemes, and URLs without an explicit port all parse. `backend\.env` is checked too, for frontend/backend split projects. `-Tag` labels the archive — handy before risky changes.
 
 ```powershell
-zbackup                          # everything
+zbackup all                      # everything
 zbackup pyapp -Tag "pre-migration"
 ```
 
@@ -255,14 +258,14 @@ The no-args mode copies only files that don't already exist at the destination (
 #### `zbackup_and_sync.ps1` — both in one
 
 ```
-zbackup_and_sync.ps1 [<project> ...]
+zbackup_and_sync.ps1 <project> [<project> ...] | all
 ```
 
-Runs `zbackup`, then `zsync`. This is what the scheduled task calls.
+Runs `zbackup`, then `zsync`. This is what the scheduled task calls (with `all`).
 
 #### `setup_backup_schedule.ps1` — nightly automation
 
-Run **as Administrator** once. Creates a Windows Scheduled Task that runs `zbackup_and_sync.ps1` daily at 2:00 AM.
+Run **as Administrator** once. Creates a Windows Scheduled Task that runs `zbackup_and_sync.ps1 all` daily at 2:00 AM.
 
 ### Utilities
 
