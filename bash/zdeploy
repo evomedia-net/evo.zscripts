@@ -40,7 +40,7 @@ EC2_IP="$(zec2_ip)"
 STACK_ROOT="$(zq '.ec2.stackRoot')"
 REMOTE_HOME="/home/$(zec2_user)"
 EC2_USER="$(zec2_user)"
-TEMP_ROOT="$(zq '.paths.temp')"
+TEMP_ROOT="$(z_path "$(zq '.paths.temp')")"
 { [ -z "$TEMP_ROOT" ] || [ "$TEMP_ROOT" = "null" ]; } && TEMP_ROOT="${TMPDIR:-/tmp}"
 mkdir -p "$TEMP_ROOT"
 
@@ -167,7 +167,7 @@ wait_verify_static() {  # <key> <pre_product_version> <pre_build_number>
 deploy_git_pull() {  # <key>
   local key="$1" root branch
   [ "$(zproj "$key" .deploy.gitPull)" = "true" ] || return 0
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   if [ ! -d "$root/.git" ]; then
     warn "  gitPull set but '$root' is not a git repo - skipping pull."
     return 0
@@ -187,7 +187,7 @@ deploy_git_pull() {  # <key>
 deploy_python() {  # <key>
   local key="$1" start=$SECONDS root remote_path compose_dir app_svc zip_name zip_local
   local bv="" has_version_tool=0 excl=() attempt out label domain
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   remote_path="$(zproj "$key" .remote.path)"
   compose_dir="$(zremote_compose_dir "$key")"
   app_svc="$(zproj "$key" .remote.appService)"; [ -n "$app_svc" ] || app_svc="app"
@@ -272,7 +272,7 @@ deploy_python() {  # <key>
 deploy_vite() {  # <key>
   local key="$1" start=$SECONDS root remote_path zip_name zip_local excl=()
   local pre_pv="" pre_bn="" label domain edge_pc
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   remote_path="$(zproj "$key" .remote.path)"
   zip_name="$(deploy_zip_name "$key")"
   zip_local="$TEMP_ROOT/$zip_name"
@@ -328,7 +328,7 @@ deploy_vite() {  # <key>
 deploy_next() {  # <key>
   local key="$1" start=$SECONDS root remote_path app_svc zip_name zip_local excl=()
   local pre_pv="" pre_bn="" label domain db_user db_name prod_port
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   remote_path="$(zproj "$key" .remote.path)"
   app_svc="$(zproj "$key" .remote.appService)"; [ -n "$app_svc" ] || app_svc="web"
   zip_name="$(deploy_zip_name "$key")"
@@ -412,7 +412,7 @@ deploy_next() {  # <key>
 
 deploy_edge() {  # <key>
   local key="$1" root remote_path pc label cert_mount="" rm_stale="" f
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   remote_path="$(zproj "$key" .remote.path)"
   pc="$(zproj "$key" .proxyContainer)"
   label="$(zproj "$key" .label)"
@@ -452,7 +452,7 @@ deploy_edge() {  # <key>
 
 deploy_docker() {  # <key>
   local key="$1" root remote_path label f domain
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   remote_path="$(zproj "$key" .remote.path)"
   label="$(zproj "$key" .label)"
   domain="$(zproj "$key" .domain)"

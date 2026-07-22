@@ -29,7 +29,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-BACKUP_ROOT="$(zq '.paths.backupsLocal')"
+BACKUP_ROOT="$(z_path "$(zq '.paths.backupsLocal')")"
 include_scripts=0
 if [ "${#projects[@]}" -eq 0 ]; then
   mapfile -t projects < <(zproj_keys)
@@ -76,7 +76,7 @@ exit_code=0
 backup_project() {  # <key>
   local key="$1" root out_dir zip_path dump_dir db_dump extra="-"
   zproj_require "$key"
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   out_dir="$BACKUP_ROOT/$key"; mkdir -p "$out_dir"
   zip_path="$out_dir/$(ts)_${key}$(tag_suffix).zip"
 
@@ -103,7 +103,7 @@ backup_project() {  # <key>
 
 backup_scripts() {
   local out_dir zip_path scripts_root
-  scripts_root="$(zq '.paths.scriptsRoot')"
+  scripts_root="$(z_path "$(zq '.paths.scriptsRoot')")"
   out_dir="$BACKUP_ROOT/scripts"; mkdir -p "$out_dir"
   zip_path="$out_dir/$(ts)_scripts$(tag_suffix).zip"
 

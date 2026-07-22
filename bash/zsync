@@ -29,8 +29,8 @@ done
 
 # ---- no-args mode: backups -> offsite, new files only ------------------------
 if [ "${#projects[@]}" -eq 0 ]; then
-  BACKUPS_ROOT="$(dirname "$(zq '.paths.backupsLocal')")"
-  OFFSITE_ROOT="$(zq '.paths.oneDriveBackups')"
+  BACKUPS_ROOT="$(dirname "$(z_path "$(zq '.paths.backupsLocal')")")"
+  OFFSITE_ROOT="$(z_path "$(zq '.paths.oneDriveBackups')")"
 
   printf '\n'; info "=== zsync (backups -> offsite) ==="
   dim "  Source:      $BACKUPS_ROOT"
@@ -73,7 +73,7 @@ for key in "${projects[@]}"; do
     printf '\n'; warn "zsync project mode only supports vite kind (builds and mirrors dist/). '$key' is kind '$kind'."
     exit 1
   fi
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
 
   if [ -z "$dest" ]; then
     printf '\n'; info "=== zsync ($(zproj "$key" .label)) ==="

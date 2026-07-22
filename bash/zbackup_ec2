@@ -25,7 +25,7 @@ if [ "${#projects[@]}" -eq 0 ]; then
   mapfile -t projects < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.remote.path != null) | .key' "$ZCONFIG")
 fi
 
-EC2_BACKUP_ROOT="$(zq '.paths.backupsEc2')"
+EC2_BACKUP_ROOT="$(z_path "$(zq '.paths.backupsEc2')")"
 REMOTE_HOME="/home/$(zec2_user)"
 
 scp_down() {  # <remote_path> <local_path>
