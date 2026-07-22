@@ -72,9 +72,12 @@ start_python() {  # <key> <port>
   [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
   [ -n "$module" ] || { err "Project '$key' (kind=python) needs 'startModule' in zconfig.json (e.g. \"startModule\": \"pyapp.main\")."; return 1; }
 
-  # Prefer the project venv (Unix layout; Scripts/ fallback covers Windows-made venvs).
+  # Prefer the project venv. The Scripts/python.exe branch is a *Windows* venv
+  # layout — only runnable from a Windows-family shell (Git Bash/MSYS/Cygwin).
+  # On WSL/Linux/macOS a Windows-built venv may sit on a mounted drive and look
+  # executable but can't exec, so guard that branch to fall through to python3.
   if   [ -x "$root/.venv/bin/python" ];        then exe="$root/.venv/bin/python"
-  elif [ -x "$root/.venv/Scripts/python.exe" ]; then exe="$root/.venv/Scripts/python.exe"
+  elif [ -x "$root/.venv/Scripts/python.exe" ] && [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then exe="$root/.venv/Scripts/python.exe"
   elif command -v python3 >/dev/null 2>&1;      then exe="python3"
   else exe="python"; fi
 
