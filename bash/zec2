@@ -28,7 +28,7 @@ done
 HOST="${host_override:-$(zec2_ip)}"
 
 if [ "${#projects[@]}" -eq 0 ]; then
-  mapfile -t projects < <(zproj_keys_with_domain)
+  projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done < <(zproj_keys_with_domain)
   if [ "${#projects[@]}" -eq 0 ]; then
     warn "No projects with a 'domain' configured in zconfig.json."
     exit 1

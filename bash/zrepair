@@ -60,7 +60,7 @@ for key in "$@"; do
     "cd $compose_dir || exit 1; if ! sudo docker compose ps | grep -q Up; then echo '    [Action] Stack is down. Starting...'; sudo docker compose up -d; else echo '    [OK] Stack is active and UP.'; fi" || exit 1
 
   if [ -n "$domain" ]; then
-    warn "  [3/3] Smoke test for https://$domain..."
+    warn "  [3/3] Smoke test for $domain (via http://$HOST)..."
     code="$(http_code "http://$HOST/" "$domain")"
     if [ "$code" = "000" ]; then
       err "    FAIL - smoke test failed: no HTTP response"

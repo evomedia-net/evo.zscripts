@@ -31,6 +31,10 @@ if [ "${#projects[@]}" -eq 0 ]; then
   exit 1
 fi
 
+# --kill-all (kill stray project processes beyond the dev-port listener) isn't
+# ported yet; announce it rather than silently accepting the flag and doing nothing.
+[ "$kill_all" -eq 1 ] && warn "Note: --kill-all isn't implemented in the bash port yet - killing dev-port listeners only."
+
 for key in "${projects[@]}"; do
   zproj_require "$key"
   label="$(zproj "$key" .label)"; [ -n "$label" ] || label="$key"

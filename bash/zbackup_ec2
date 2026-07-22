@@ -22,7 +22,8 @@ z_require ssh scp
 
 projects=("$@")
 if [ "${#projects[@]}" -eq 0 ]; then
-  mapfile -t projects < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.remote.path != null) | .key' "$ZCONFIG")
+  projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done \
+    < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.remote.path != null) | .key' "$ZCONFIG")
 fi
 
 EC2_BACKUP_ROOT="$(z_path "$(zq '.paths.backupsEc2')")"

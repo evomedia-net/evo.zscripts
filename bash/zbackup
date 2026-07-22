@@ -32,7 +32,7 @@ done
 BACKUP_ROOT="$(z_path "$(zq '.paths.backupsLocal')")"
 include_scripts=0
 if [ "${#projects[@]}" -eq 0 ]; then
-  mapfile -t projects < <(zproj_keys)
+  projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done < <(zproj_keys)
   include_scripts=1
 else
   filtered=()
@@ -92,7 +92,7 @@ backup_project() {  # <key>
 
   warn "  [2/3] Archiving source..."
   local excl=()
-  mapfile -t excl < <(z_archive_excludes "$key" 1)
+  excl=(); while IFS= read -r _zl || [ -n "$_zl" ]; do excl+=("$_zl"); done < <(z_archive_excludes "$key" 1)
   if ! z_archive "$root" "$zip_path" 0 "$extra" "${excl[@]}"; then
     rm -rf "$dump_dir"; return 1
   fi
