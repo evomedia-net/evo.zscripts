@@ -47,10 +47,12 @@ z_path() {
       if command -v wslpath >/dev/null 2>&1; then
         wslpath -u "$p" 2>/dev/null || printf '%s' "$p"
       else
-        # Fallback when wslpath is absent: F:\a\b -> /mnt/f/a/b
-        local drive="${p%%:*}" rest="${p#*:}"
-        rest="${rest//\\//}"
-        printf '/mnt/%s%s' "${drive,,}" "$rest"
+        # Fallback when wslpath is absent: F:\a\b -> /mnt/f/a/b. Lowercase the
+        # drive via tr (not ${x,,}) so this stays bash-3.2 clean for macOS.
+        local drive rest
+        drive="$(printf '%s' "${p%%:*}" | tr '[:upper:]' '[:lower:]')"
+        rest="${p#*:}"; rest="${rest//\\//}"
+        printf '/mnt/%s%s' "$drive" "$rest"
       fi
       ;;
     *) printf '%s' "$p" ;;
