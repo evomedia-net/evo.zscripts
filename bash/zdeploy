@@ -46,8 +46,10 @@ mkdir -p "$TEMP_ROOT"
 
 # 'all' -> every project, edge kinds first (the proxy must route before apps ship).
 if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
-  mapfile -t edge_keys < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.kind == "edge") | .key' "$ZCONFIG")
-  mapfile -t rest_keys < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.kind != "edge") | .key' "$ZCONFIG")
+  edge_keys=(); while IFS= read -r _zl || [ -n "$_zl" ]; do edge_keys+=("$_zl"); done \
+    < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.kind == "edge") | .key' "$ZCONFIG")
+  rest_keys=(); while IFS= read -r _zl || [ -n "$_zl" ]; do rest_keys+=("$_zl"); done \
+    < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.kind != "edge") | .key' "$ZCONFIG")
   projects=("${edge_keys[@]+"${edge_keys[@]}"}" "${rest_keys[@]+"${rest_keys[@]}"}")
   info "Deploying all projects: $(printf '%s ' "${projects[@]}")"
 fi
@@ -203,7 +205,7 @@ deploy_python() {  # <key>
 
   printf '\n'; info "--- [1] Zipping $label ---"
   find "$root" -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null
-  mapfile -t excl < <(z_archive_excludes "$key" 0)
+  excl=(); while IFS= read -r _zl || [ -n "$_zl" ]; do excl+=("$_zl"); done < <(z_archive_excludes "$key" 0)
   z_archive "$root" "$zip_local" 0 "-" "${excl[@]}" || return 1
 
   preflight_cleanup "$REMOTE_HOME/$zip_name" || { rm -f "$zip_local"; return 1; }
@@ -289,7 +291,7 @@ deploy_vite() {  # <key>
     pre_bn="$(jq -r '.buildNumber // empty' "$root/build-version.json")"
     [ -n "$pre_pv" ] && dim "  Pre-zip build label: v${pre_pv}.${pre_bn} (server-side build will bump +1)"
   fi
-  mapfile -t excl < <(z_archive_excludes "$key" 0)
+  excl=(); while IFS= read -r _zl || [ -n "$_zl" ]; do excl+=("$_zl"); done < <(z_archive_excludes "$key" 0)
   z_archive "$root" "$zip_local" 0 "-" "${excl[@]}" || return 1
 
   preflight_cleanup "$REMOTE_HOME/$zip_name" || { rm -f "$zip_local"; return 1; }
@@ -347,7 +349,7 @@ deploy_next() {  # <key>
   fi
 
   printf '\n'; info "--- [1] Zipping project files ---"
-  mapfile -t excl < <(z_archive_excludes "$key" 0)
+  excl=(); while IFS= read -r _zl || [ -n "$_zl" ]; do excl+=("$_zl"); done < <(z_archive_excludes "$key" 0)
   z_archive "$root" "$zip_local" 0 "-" "${excl[@]}" || return 1
 
   preflight_cleanup "$REMOTE_HOME/$zip_name" || { rm -f "$zip_local"; return 1; }

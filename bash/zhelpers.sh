@@ -283,8 +283,16 @@ z_track_stop() {
   Z_TRACK_FILE=""
 }
 
-# Portable thousands separators (avoids locale-dependent printf %'d).
-_z_commafy() { printf '%s' "$1" | sed -E ':a;s/([0-9])([0-9]{3})($|[^0-9])/\1,\2\3/;ta'; }
+# Portable thousands separators for a non-negative integer string (avoids both
+# locale-dependent printf %'d and the GNU-only `sed :a;...;ta` idiom, which
+# errors on BSD/macOS sed).
+_z_commafy() {
+  awk -v n="$1" 'BEGIN{
+    s = n ""; out = ""
+    while (length(s) > 3) { out = "," substr(s, length(s) - 2) out; s = substr(s, 1, length(s) - 3) }
+    printf "%s%s", s, out
+  }'
+}
 
 # Append a run to the ztokens JSONL store. Data dir precedence: $ZTOKENS_DATA,
 # then config "ztokens.dataDir", then the sibling ../../ztokens/data if present

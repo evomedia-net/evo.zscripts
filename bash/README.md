@@ -11,12 +11,12 @@ same behavior — no PowerShell required.
 
 ## Requirements
 
-- bash 4+, `jq`, `curl`, `zip`, OpenSSH (`ssh`/`scp`)
+- bash 3.2+ (the stock macOS bash works), `jq`, `curl`, `zip`, OpenSSH (`ssh`/`scp`)
 - `lsof` (for `zkill`/`zrestart`), `rsync` (for `zsync <project>` mirror mode)
 - Docker + docker compose on the remote host for the deploy scripts
 
 Debian/Ubuntu: `sudo apt install jq curl zip lsof rsync`
-macOS: `brew install jq` (the rest ships with the OS)
+macOS: `brew install jq` (bash, curl, zip, ssh, lsof and rsync already ship with macOS)
 
 ## Install
 
