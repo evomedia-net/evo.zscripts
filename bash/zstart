@@ -52,7 +52,7 @@ detach() {  # <key> <workdir> <cmd...>
 #   "start": { "gitPull": true, "env": { "SOME_FLAG": "1" } }
 start_prep() {  # <key>
   local key="$1" root kv name val
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   while IFS=$'\t' read -r name val; do
     [ -n "$name" ] || continue
     export "$name=$val"
@@ -68,7 +68,7 @@ start_prep() {  # <key>
 
 start_python() {  # <key> <port>
   local key="$1" port="$2" root module exe bv=""
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   module="$(zproj "$key" .startModule)"
   [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
   [ -n "$module" ] || { err "Project '$key' (kind=python) needs 'startModule' in zconfig.json (e.g. \"startModule\": \"pyapp.main\")."; return 1; }
@@ -105,7 +105,7 @@ start_python() {  # <key> <port>
 
 start_vite() {  # <key> <port>
   local key="$1" port="$2" root
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
   [ -f "$root/package.json" ] || { err "package.json not found in $root"; return 1; }
 
@@ -133,7 +133,7 @@ start_vite() {  # <key> <port>
 
 start_next() {  # <key> <port>
   local key="$1" port="$2" root
-  root="$(zproj "$key" .localRoot)"
+  root="$(zproj_root "$key")"
   [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
   [ -f "$root/package.json" ] || { err "package.json not found in $root"; return 1; }
 

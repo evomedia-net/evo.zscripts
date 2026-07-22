@@ -33,6 +33,30 @@ z_require() {
   [ "$miss" -eq 0 ] || exit 1
 }
 
+# ---- local path translation -------------------------------------------------
+# A shared zconfig.json may hold Windows paths (e.g. "F:\evomedia.net\app") when
+# the same file is used from a Windows checkout and from WSL. Translate a
+# drive-letter path to the host's native form so local file ops work; leave
+# anything else (Unix paths, empty strings) untouched — so this is a no-op on
+# native Linux/macOS. Only LOCAL paths get run through this; server-side paths
+# (remote.path, composeDir, stackRoot, certsSource) stay verbatim.
+z_path() {
+  local p="$1"
+  case "$p" in
+    [A-Za-z]:[\\/]*)
+      if command -v wslpath >/dev/null 2>&1; then
+        wslpath -u "$p" 2>/dev/null || printf '%s' "$p"
+      else
+        # Fallback when wslpath is absent: F:\a\b -> /mnt/f/a/b
+        local drive="${p%%:*}" rest="${p#*:}"
+        rest="${rest//\\//}"
+        printf '/mnt/%s%s' "${drive,,}" "$rest"
+      fi
+      ;;
+    *) printf '%s' "$p" ;;
+  esac
+}
+
 # ---- config accessors (jq) --------------------------------------------------
 z_need_config() {
   z_require jq
@@ -52,6 +76,8 @@ zproj_keys_with_domain() {
 }
 # Field of a project:  zproj <key> <dotpath>   e.g.  zproj sp .kind   |   zproj sp .ports.dev
 zproj()      { jq -r --arg k "$1" ".projects[\$k]$2 // empty" "$ZCONFIG"; }
+# A project's local root, translated to the host's native path form.
+zproj_root() { z_path "$(zproj "$1" .localRoot)"; }
 zproj_require() {
   if [ "$(jq -r --arg k "$1" '(.projects[$k] != null)' "$ZCONFIG")" != "true" ]; then
     err "Unknown project key '$1'. Available: $(zproj_csv)"
@@ -60,7 +86,7 @@ zproj_require() {
 }
 zec2_ip()     { zq '.ec2.ip'; }
 zec2_user()   { zq '.ec2.user'; }
-zec2_pem()    { zq '.ec2.pemKey'; }
+zec2_pem()    { z_path "$(zq '.ec2.pemKey')"; }
 zec2_target() { printf '%s@%s' "$(zec2_user)" "$(zec2_ip)"; }
 # Remote compose directory: remote.composeDir if set, else remote.path.
 zremote_compose_dir() {
@@ -124,7 +150,7 @@ json_build_label() {
 # Local build label by project kind (mirrors Get-LocalVersionLabel).
 local_version_label() {
   local key="$1" kind root out
-  kind="$(zproj "$key" .kind)"; root="$(zproj "$key" .localRoot)"
+  kind="$(zproj "$key" .kind)"; root="$(zproj_root "$key")"
   case "$kind" in
     python)
       if [ -f "$root/scripts/build_version_tool.py" ]; then
@@ -294,7 +320,7 @@ z_record() {  # <lines> <chars> <est>
   command -v jq >/dev/null 2>&1 || return
   local lines="$1" chars="$2" est="$3" dir model projects
   dir="${ZTOKENS_DATA:-}"
-  [ -z "$dir" ] && [ -f "$ZCONFIG" ] && dir="$(jq -r '.ztokens.dataDir // empty' "$ZCONFIG" 2>/dev/null)"
+  [ -z "$dir" ] && [ -f "$ZCONFIG" ] && dir="$(z_path "$(jq -r '.ztokens.dataDir // empty' "$ZCONFIG" 2>/dev/null)")"
   if [ -z "$dir" ]; then
     if [ -d "$_ZDIR/../../ztokens/data" ]; then dir="$_ZDIR/../../ztokens/data"; else dir="$HOME/.ztokens/data"; fi
   fi
