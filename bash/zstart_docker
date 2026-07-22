@@ -15,6 +15,7 @@
 set -uo pipefail
 _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_HERE/zhelpers.sh"
+z_track_start "$@"
 z_require docker
 
 build=0; attached=0; solo=0

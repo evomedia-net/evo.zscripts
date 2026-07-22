@@ -16,6 +16,11 @@
     "oneDriveBackups": ""
   },
 
+  "ztokens": {
+    "_comment": "Optional. Where each run's token-usage stats (tokens.jsonl) are recorded. Omit to use ~/.ztokens/data.",
+    "dataDir": "/home/youruser/.ztokens/data"
+  },
+
   "projects": {
     "_comment": "Rename these keys to your own project names — the key IS the command argument: zstart pyapp, zdeploy viteapp, zbackup nextapp. Add as many projects as you like. Keys starting with _ are ignored.",
 

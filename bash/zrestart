@@ -11,6 +11,7 @@
 set -uo pipefail
 _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_HERE/zhelpers.sh"
+z_track_start "$@"
 z_need_config
 
 projects=(); port_override=0; kill_all=0; no_restart=0; detached=0; bind_host="127.0.0.1"

@@ -54,6 +54,30 @@ command argument:
 Flags use GNU style (`--port 3000`, `--detached`) instead of PowerShell style
 (`-Port`, `-Detached`). Detached dev servers log to `/tmp/zstart-<project>.log`.
 
+## Usage tracking
+
+Every run prints a footer with its own output volume:
+
+```
+--- 1,048 lines / 69,009 chars / ~19,717 tokens est. (Claude Code) ---
+```
+
+and (when `jq` is available) appends one JSON line per run to `tokens.jsonl`,
+so you can see how much infrastructure output you keep out of an AI agent's
+context over time. Fields: `ts, script, projects, lines, chars, est, model`
+(`est` ≈ `chars / 3.5`). Nested runs (the `zkill`/`zstart` inside `zrestart`)
+are counted once, not double.
+
+Where it's written, first match wins:
+
+1. `$ZTOKENS_DATA`
+2. `ztokens.dataDir` in `zconfig.json`
+3. the sibling `../ztokens/data` directory, if present
+4. `~/.ztokens/data` (created on first run)
+
+Set `ZTOKENS_MODEL` to tag records with a specific model; it defaults to
+`est. chars/3.5`.
+
 ## Differences from the PowerShell versions
 
 - `zsync <viteproject>` mirrors `dist/` with `rsync -a --delete` (robocopy /MIR equivalent).

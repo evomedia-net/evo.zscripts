@@ -10,6 +10,7 @@
 
 set -uo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/zhelpers.sh"
+z_track_start "$@"
 z_need_config
 z_require lsof
 
