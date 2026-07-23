@@ -29,6 +29,7 @@
       "kind":        "python",
       "localRoot":   "/home/youruser/code/pyapp",
       "startModule": "pyapp.main",
+      "install":     "-e .",
       "ports":       { "dev": 8080 },
       "domain":      "pyapp.yourdomain.com",
       "start": {

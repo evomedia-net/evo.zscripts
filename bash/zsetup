@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+#
+# zsetup — prepare a project for local dev: create its Python venv and install
+# dependencies (python kind), or run `npm install` (vite/nextjs). Idempotent -
+# safe to re-run to refresh deps. `zstart` only warns when a venv is missing;
+# this is the command that creates it.
+#
+# Usage:
+#   zsetup <project> [<project> ...]
+#   zsetup <project> --force            # recreate the python venv from scratch
+#
+# Python install command (first match wins):
+#   1. the project's "install" config field (e.g. "-e backend", "-r reqs.txt")
+#   2. auto: pyproject.toml / setup.py -> "-e ."   |   requirements.txt -> "-r requirements.txt"
+
+set -uo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/zhelpers.sh"
+z_track_start "$@"
+z_need_config
+
+projects=(); force=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force) force=1; shift ;;
+    -*)      err "Unknown option: $1"; exit 1 ;;
+    *)       projects+=("$1"); shift ;;
+  esac
+done
+
+if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zsetup <project> [<project> ...] [--force]"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  dim "  Creates the python venv + installs deps (or runs npm install for vite/nextjs)."
+  exit 1
+fi
+
+# pip install args for a python project (one per line): config .install, else
+# auto-detect a root pyproject.toml/setup.py or requirements.txt. Empty = unknown.
+py_install_args() {  # <key> <root>
+  local key="$1" root="$2" cfg
+  cfg="$(zproj "$key" .install)"
+  if [ -n "$cfg" ]; then printf '%s\n' $cfg; return 0; fi
+  if [ -f "$root/pyproject.toml" ] || [ -f "$root/setup.py" ]; then printf '%s\n' -e .; return 0; fi
+  if [ -f "$root/requirements.txt" ]; then printf '%s\n' -r requirements.txt; return 0; fi
+  return 0
+}
+
+setup_python() {  # <key> <root>
+  local key="$1" root="$2" venv="$2/.venv" args=() a
+  z_require python3
+  while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done < <(py_install_args "$key" "$root")
+  if [ "${#args[@]}" -eq 0 ]; then
+    err "  Can't determine dependencies for '$key' (no pyproject.toml/setup.py/requirements.txt at $root)."
+    dim "  Add an \"install\" field to the project, e.g.  \"install\": \"-e backend\"  or  \"-r requirements.txt\"."
+    return 1
+  fi
+  if [ "$force" -eq 1 ] && [ -d "$venv" ]; then dim "  Removing existing venv (--force)..."; rm -rf "$venv"; fi
+  if [ ! -x "$venv/bin/python" ]; then
+    info "  Creating venv: $venv"
+    python3 -m venv "$venv" || { err "  venv creation failed"; return 1; }
+  else
+    dim "  venv exists: $venv (installing/updating deps)"
+  fi
+  info "  pip install ${args[*]}"
+  ( cd "$root" && "$venv/bin/pip" install "${args[@]}" ) || { err "  pip install failed"; return 1; }
+  ok "  $key ready - zstart $key will use $venv/bin/python."
+}
+
+setup_node() {  # <key> <root>
+  local key="$1" root="$2"
+  [ -f "$root/package.json" ] || { err "  No package.json in $root"; return 1; }
+  z_require npm
+  info "  npm install (in $root)..."
+  ( cd "$root" && npm install ) || { err "  npm install failed"; return 1; }
+  ok "  $key node_modules ready."
+}
+
+rc=0
+for key in "${projects[@]}"; do
+  zproj_require "$key"
+  kind="$(zproj "$key" .kind)"
+  root="$(zproj_root "$key")"
+  printf '\n'; info "=== zsetup ($(zproj "$key" .label)) ==="
+  [ -d "$root" ] || { err "  Project root not found: $root"; rc=1; continue; }
+  case "$kind" in
+    python)      setup_python "$key" "$root" || rc=1 ;;
+    vite|nextjs) setup_node   "$key" "$root" || rc=1 ;;
+    *)           dim "  kind '$kind' - nothing to set up locally." ;;
+  esac
+done
+printf '\n'
+exit "$rc"

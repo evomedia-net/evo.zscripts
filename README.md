@@ -72,6 +72,7 @@ The example config ships with sample projects named by their kind — `pyapp`, `
       "kind":        "python",                        // python | vite | nextjs | edge | docker
       "localRoot":   "C:\\dev\\myapp",                // project folder on this machine
       "startModule": "myapp.main",                    // python kind: runs "python -m myapp.main"
+      "install":     "-e .",                          // optional: pip args `zsetup` uses (auto-detects "-e ." / "-r requirements.txt")
       "ports":       { "dev": 8080, "prod": 3000 },   // local dev port / direct server port
       "domain":      "www.myapp.com",                 // public domain (health checks + verification)
       "start": {                                      // optional zstart pre-steps
@@ -98,6 +99,7 @@ The example config ships with sample projects named by their kind — `pyapp`, `
 
 Optional blocks do real work:
 
+- **`install`** — how `zsetup` installs a python project's dependencies into its `.venv`: the pip args, e.g. `"-e ."`, `"-e backend"` (deps in a subfolder), or `"-r requirements.txt"`. Omit it and `zsetup` auto-detects a root `pyproject.toml`/`setup.py` (`-e .`) or `requirements.txt` (`-r requirements.txt`). `zstart` never installs — run `zsetup <key>` once, then `zstart <key>`.
 - **`start`** — pre-start steps for `zstart`: `gitPull: true` runs `git pull --ff-only` in the project root first (never starts a stale checkout), and `env` sets environment variables for the dev-server process (feature flags, reload switches).
 - **`db`** — deploys wait for `pg_isready` and `zbackup_ec2` pulls a `pg_dump`, both against the compose service named `db`. Omit it and those steps are skipped cleanly.
 - **`deploy.gitPull`** — `git pull --ff-only` in the project root before zipping, so a merged PR actually ships. Since `zdeploy` zips your working tree, a checkout left behind `origin` would otherwise deploy stale code *and still bump the build number* — a silent no-op that looks like success. A failed pull (dirty tree that conflicts, diverged history) aborts the deploy rather than shipping uncertain code.
@@ -113,6 +115,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 
 | Command | What it does |
 |---|---|
+| `zsetup <key> ...` | Create the project's Python venv + install deps (or `npm install` for node) |
 | `zstart <key> ...` | Start local dev server(s) |
 | `zstartd <key> ...` | Same, detached (new window, returns immediately) |
 | `zkill <key> ...` | Kill local dev server(s) by port |
