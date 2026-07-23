@@ -67,13 +67,20 @@ function Ensure-BackupDir {
 
 # Dump the project's Postgres database if its .env declares a DATABASE_URL.
 # Checks <root>\.env, then <root>\backend\.env (frontend/backend split projects).
+# Prints its own status line for every outcome; returns $true (dumped) or $false.
+# A not-running database (connection refused) is a calm, expected skip; a real
+# failure (version mismatch, auth, missing db) prints the loud pg_dump error.
 function Invoke-LocalPgDump {
     param([string]$Root, [string]$OutPath)
     $envFile = Join-Path $Root ".env"
     if (-not (Test-Path -LiteralPath $envFile)) { $envFile = Join-Path $Root "backend\.env" }
-    if (-not (Test-Path -LiteralPath $envFile)) { return $false }
+    if (-not (Test-Path -LiteralPath $envFile)) {
+        Write-Host "    No local DATABASE_URL - source-only backup." -ForegroundColor DarkGray; return $false
+    }
     $dbLine = @(Get-Content -LiteralPath $envFile | Where-Object { $_ -match "^DATABASE_URL=" } | Select-Object -First 1)
-    if ($dbLine.Count -eq 0) { return $false }
+    if ($dbLine.Count -eq 0) {
+        Write-Host "    No local DATABASE_URL - source-only backup." -ForegroundColor DarkGray; return $false
+    }
 
     # Strip surrounding quotes (Prisma-style .env values are double-quoted),
     # accept postgres:// and postgresql+driver:// schemes, and treat the
@@ -104,16 +111,31 @@ function Invoke-LocalPgDump {
     foreach ($candidate in $pgBinPaths) {
         if (Test-Path $candidate) { $pgDump = $candidate; break }
     }
-    & $pgDump -h $pgHost -p $pgPort -U $pgUser -d $pgDb -F p -f $OutPath 2>$null
+    # Capture stderr so a failure is diagnosable (version mismatch, unreachable
+    # host, auth) instead of a bare "pg_dump failed". PS 5.1 turns native stderr
+    # into a terminating NativeCommandError under 'Stop', so drop to Continue
+    # locally (function-scoped, auto-reverts) while running pg_dump.
+    $ErrorActionPreference = 'Continue'
+    $errOut = & $pgDump -h $pgHost -p $pgPort -U $pgUser -d $pgDb -F p -f $OutPath 2>&1
     $ok = ($LASTEXITCODE -eq 0) -and (Test-Path -LiteralPath $OutPath)
     Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
     if ($ok) {
         $size = [math]::Round((Get-Item $OutPath).Length / 1KB, 1)
         Write-Host "    PostgreSQL dump: ${size} KB" -ForegroundColor Green
-    } else {
-        Write-Host "    pg_dump failed (exit $LASTEXITCODE)" -ForegroundColor Red
+        return $true
     }
-    return $ok
+    $errText = ($errOut | Out-String).Trim()
+    # Not reachable (usually just not running locally) is expected - stay calm.
+    if ($errText -match '(?i)connection refused|could not connect|no route to host|could not translate host|timeout expired') {
+        Write-Host "    Local database not running at ${pgHost}:${pgPort} - source-only backup." -ForegroundColor DarkGray
+        return $false
+    }
+    # A real failure (version mismatch, auth, missing db) - show the reason.
+    Write-Host "    pg_dump failed (${pgHost}:${pgPort}/${pgDb} as ${pgUser}):" -ForegroundColor Red
+    foreach ($line in ($errText -split '\r?\n' | Where-Object { $_.Trim() -ne '' })) {
+        Write-Host "      $line" -ForegroundColor Red
+    }
+    return $false
 }
 
 function Invoke-ProjectBackup {
@@ -141,8 +163,6 @@ function Invoke-ProjectBackup {
         $dbDumpPath = Join-Path $dumpDir "database_pg.sql"
         if (Invoke-LocalPgDump -Root $root -OutPath $dbDumpPath) {
             $extraFiles += $dbDumpPath
-        } else {
-            Write-Host "    No local DATABASE_URL - source-only backup." -ForegroundColor DarkGray
         }
 
         Write-Host "  [2/3] Archiving source..." -ForegroundColor Yellow
