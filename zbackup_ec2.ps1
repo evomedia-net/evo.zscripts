@@ -6,8 +6,8 @@
 # with a "db" config block, plus a zip of server-side data dirs (uploads/archive/dist).
 #
 # Usage:
-#   zbackup_ec2                          # every project with a remote.path
 #   zbackup_ec2 <project> [<project> ...]
+#   zbackup_ec2 all                      # every project with a remote.path
 #
 # Output:
 #   <paths.backupsEc2>\<project>\<timestamp>_<project>_db.sql    (projects with a db block)
@@ -29,6 +29,13 @@ $RemoteHome    = Get-Ec2Home
 $Ec2BackupRoot = $cfg.paths.backupsEc2
 
 if ($Projects.Count -eq 0) {
+    Write-Host ""
+    Write-Host "Usage: zbackup_ec2 <project> [<project> ...] | all" -ForegroundColor Yellow
+    Write-Host "  Projects in zconfig.json: $((Get-ZProjectKeys) -join ', ')" -ForegroundColor Gray
+    Write-Host "  'all' pulls a server backup of every project with a remote.path." -ForegroundColor Gray
+    Stop-ZTracking; exit 1
+}
+if ($Projects -contains 'all') {
     $Projects = @(Get-ZProjectKeys | Where-Object { $cfg.projects.$_.remote -and $cfg.projects.$_.remote.path })
 }
 

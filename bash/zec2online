@@ -7,8 +7,8 @@
 # build; auto-start downed stacks via docker compose and stream diagnostics.
 #
 # Usage:
-#   zec2online                          # every project with a "domain" in zconfig.json
 #   zec2online <project> [<project> ...]
+#   zec2online all                      # every project with a "domain" in zconfig.json
 #
 # A plain HTTP-200 check passes even when a stale cached build is live — the
 # local-vs-server version match is what proves the deployed build is the one running.
@@ -32,6 +32,12 @@ HOST="${host_override:-$(zec2_ip)}"
 EDGE_KEY="$(zedge_key)"
 
 if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zec2online <project> [<project> ...] | all  [--host <ip>]"
+  dim  "  Projects in zconfig.json: $(zproj_csv)"
+  dim  "  'all' deep-checks every project with a 'domain' (and auto-starts any that are down)."
+  exit 1
+fi
+if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
   projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done < <(zproj_keys_with_domain)
   if [ "${#projects[@]}" -eq 0 ]; then
     warn "No projects with a 'domain' configured in zconfig.json."
