@@ -8,8 +8,9 @@
 # Usage:
 #   zstart <project> [<project> ...] [--port N] [--bind-host host] [--detached]
 #
-# Handlers by kind: python (python -m <startModule>, prefers .venv),
-# vite (npm run dev -- --host --port), nextjs (npm run dev with PORT).
+# Handlers by kind: python (python -m <startModule>, or uvicorn <startApp> for
+# ASGI/FastAPI apps; prefers .venv), vite (npm run dev -- --host --port),
+# nextjs (npm run dev with PORT).
 # Detached servers log to /tmp/zstart-<project>.log ; stop them with zkill.
 
 set -uo pipefail
@@ -67,11 +68,12 @@ start_prep() {  # <key>
 }
 
 start_python() {  # <key> <port>
-  local key="$1" port="$2" root module exe bv=""
+  local key="$1" port="$2" root module app exe bv="" run_cmd=() what
   root="$(zproj_root "$key")"
   module="$(zproj "$key" .startModule)"
+  app="$(zproj "$key" .startApp)"
   [ -d "$root" ] || { err "Project root not found: $root"; return 1; }
-  [ -n "$module" ] || { err "Project '$key' (kind=python) needs 'startModule' in zconfig.json (e.g. \"startModule\": \"pyapp.main\")."; return 1; }
+  [ -n "$module" ] || [ -n "$app" ] || { err "Project '$key' (kind=python) needs 'startModule' (python -m ...) or 'startApp' (uvicorn app:app) in zconfig.json."; return 1; }
 
   # Prefer the project venv. The Scripts/python.exe branch is a *Windows* venv
   # layout — only runnable from a Windows-family shell (Git Bash/MSYS/Cygwin).
@@ -88,8 +90,19 @@ start_python() {  # <key> <port>
     [ -n "$bv" ] || bv="$(cd "$root" && "$exe" scripts/build_version_tool.py get 2>/dev/null | tail -1)"
   fi
 
+  # startApp (uvicorn ASGI target, e.g. app.main:app) takes precedence over
+  # startModule (python -m ...). uvicorn is run via the venv python's -m so no
+  # PATH juggling is needed, and it gets zstart's bind-host + dev port.
+  if [ -n "$app" ]; then
+    run_cmd=("$exe" -m uvicorn "$app" --host "$bind_host" --port "$port" --reload)
+    what="uvicorn $app"
+  else
+    run_cmd=("$exe" -m "$module")
+    what="python -m $module"
+  fi
+
   printf '\n'; info "=== zstart ($(zproj "$key" .label)) ==="
-  info "Starting python -m $module on port $port..."
+  info "Starting $what on port $port..."
   [ -n "$bv" ] && note "Build Version: $bv"
   show_project_motd "$root"
   dim "Press Ctrl+C to stop the server"
@@ -97,9 +110,9 @@ start_python() {  # <key> <port>
   printf '\n'
 
   if [ "$detached" -eq 1 ]; then
-    detach "$key" "$root" "$exe" -m "$module"
+    detach "$key" "$root" "${run_cmd[@]}"
   else
-    ( cd "$root" && exec "$exe" -m "$module" )
+    ( cd "$root" && exec "${run_cmd[@]}" )
   fi
 }
 

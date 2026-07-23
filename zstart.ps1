@@ -12,8 +12,9 @@
 #   zstart viteapp -Port 3000
 #   zstart pyapp nextapp -Detached
 #
-# Handlers by kind: python (python -m <startModule>, prefers .venv),
-# vite (npm run dev -- --host --port), nextjs (npm run dev with PORT).
+# Handlers by kind: python (python -m <startModule>, or uvicorn <startApp> for
+# ASGI/FastAPI apps; prefers .venv), vite (npm run dev -- --host --port),
+# nextjs (npm run dev with PORT).
 #
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
@@ -45,12 +46,13 @@ function Test-PortNeedsAdmin {
 }
 
 function Start-PythonProject {
-    param([string]$Key, $Proj, [int]$ListenPort, [bool]$RunDetached)
+    param([string]$Key, $Proj, [int]$ListenPort, [bool]$RunDetached, [string]$HostBind = "127.0.0.1")
     $root = $Proj.localRoot
     if (-not (Test-Path -LiteralPath $root)) { throw "Project root not found: $root" }
     $module = $Proj.startModule
-    if (-not $module) {
-        throw "Project '$Key' (kind=python) needs 'startModule' in zconfig.json (e.g. `"startModule`": `"pyapp.main`" runs 'python -m pyapp.main')."
+    $app    = $Proj.startApp
+    if (-not $module -and -not $app) {
+        throw "Project '$Key' (kind=python) needs 'startModule' (python -m ...) or 'startApp' (uvicorn app:app) in zconfig.json."
     }
     Set-Location -LiteralPath $root
     $venvPython = Join-Path $root ".venv\Scripts\python.exe"
@@ -77,9 +79,20 @@ function Start-PythonProject {
         }
     }
 
+    # startApp (uvicorn ASGI target, e.g. app.main:app) takes precedence over
+    # startModule (python -m ...). uvicorn runs via the venv python's -m, and
+    # gets zstart's bind-host + dev port.
+    if ($app) {
+        $runArgs = @("-m", "uvicorn", $app, "--host", $HostBind, "--port", "$ListenPort", "--reload")
+        $what    = "uvicorn $app"
+    } else {
+        $runArgs = @("-m", $module)
+        $what    = "python -m $module"
+    }
+
     Write-Host ""
     Write-Host "=== zstart ($($Proj.label)) ===" -ForegroundColor Cyan
-    Write-Host "Starting python -m $module on port $ListenPort..." -ForegroundColor Cyan
+    Write-Host "Starting $what on port $ListenPort..." -ForegroundColor Cyan
     if (-not [string]::IsNullOrWhiteSpace($buildVersion)) {
         Write-Host "Build Version: $buildVersion" -ForegroundColor Magenta
     }
@@ -91,11 +104,11 @@ function Start-PythonProject {
     Write-Host ""
 
     if ($RunDetached) {
-        Start-Process -FilePath $exe -ArgumentList "-m", $module -WorkingDirectory $root | Out-Null
+        Start-Process -FilePath $exe -ArgumentList $runArgs -WorkingDirectory $root | Out-Null
         Write-Host "Started in detached mode." -ForegroundColor Green
         Write-Host "Use zkill $Key to stop it." -ForegroundColor DarkGray
     } else {
-        & $exe -m $module
+        & $exe @runArgs
     }
 }
 
@@ -201,7 +214,7 @@ foreach ($key in $Projects) {
     Invoke-ProjectStartPrep -Proj $proj
 
     switch ([string]$proj.kind) {
-        "python" { Start-PythonProject -Key $key -Proj $proj -ListenPort $devPort -RunDetached $Detached.IsPresent }
+        "python" { Start-PythonProject -Key $key -Proj $proj -ListenPort $devPort -HostBind $BindHost -RunDetached $Detached.IsPresent }
         "vite"   { Start-ViteProject   -Key $key -Proj $proj -ListenPort $devPort -HostBind $BindHost -RunDetached $Detached.IsPresent }
         "nextjs" { Start-NextProject   -Key $key -Proj $proj -ListenPort $devPort -RunDetached $Detached.IsPresent }
         default {
