@@ -56,7 +56,8 @@ function Start-PythonProject {
     }
     Set-Location -LiteralPath $root
     $venvPython = Join-Path $root ".venv\Scripts\python.exe"
-    $exe = if (Test-Path -LiteralPath $venvPython) { $venvPython } else { "python" }
+    $usingVenv  = Test-Path -LiteralPath $venvPython
+    $exe = if ($usingVenv) { $venvPython } else { "python" }
 
     # Optional convention: if the project ships scripts/build_version_tool.py,
     # bump (or at least read) the build version on every dev start.
@@ -92,6 +93,10 @@ function Start-PythonProject {
 
     Write-Host ""
     Write-Host "=== zstart ($($Proj.label)) ===" -ForegroundColor Cyan
+    if (-not $usingVenv) {
+        Write-Host "No project venv at $root\.venv - using system 'python' (its deps may be missing)." -ForegroundColor Yellow
+        Write-Host "  Create one: python -m venv .venv; .\.venv\Scripts\pip install -e ." -ForegroundColor DarkGray
+    }
     Write-Host "Starting $what on port $ListenPort..." -ForegroundColor Cyan
     if (-not [string]::IsNullOrWhiteSpace($buildVersion)) {
         Write-Host "Build Version: $buildVersion" -ForegroundColor Magenta

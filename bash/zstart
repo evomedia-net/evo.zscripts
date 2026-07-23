@@ -68,7 +68,7 @@ start_prep() {  # <key>
 }
 
 start_python() {  # <key> <port>
-  local key="$1" port="$2" root module app exe bv="" run_cmd=() what
+  local key="$1" port="$2" root module app exe bv="" run_cmd=() what using_venv=1
   root="$(zproj_root "$key")"
   module="$(zproj "$key" .startModule)"
   app="$(zproj "$key" .startApp)"
@@ -81,8 +81,8 @@ start_python() {  # <key> <port>
   # executable but can't exec, so guard that branch to fall through to python3.
   if   [ -x "$root/.venv/bin/python" ];        then exe="$root/.venv/bin/python"
   elif [ -x "$root/.venv/Scripts/python.exe" ] && [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then exe="$root/.venv/Scripts/python.exe"
-  elif command -v python3 >/dev/null 2>&1;      then exe="python3"
-  else exe="python"; fi
+  elif command -v python3 >/dev/null 2>&1;      then exe="python3"; using_venv=0
+  else exe="python"; using_venv=0; fi
 
   # Optional convention: scripts/build_version_tool.py bumps the version on dev start.
   if [ -f "$root/scripts/build_version_tool.py" ]; then
@@ -102,6 +102,12 @@ start_python() {  # <key> <port>
   fi
 
   printf '\n'; info "=== zstart ($(zproj "$key" .label)) ==="
+  # No project venv found - warn, since the system interpreter usually lacks the
+  # app's deps (the failure would otherwise be a cryptic ModuleNotFoundError).
+  if [ "$using_venv" -eq 0 ]; then
+    warn "No project venv at $root/.venv - using system '$exe' (its deps may be missing)."
+    dim  "  Create one: (cd \"$root\" && python3 -m venv .venv && .venv/bin/pip install -e .)"
+  fi
   info "Starting $what on port $port..."
   [ -n "$bv" ] && note "Build Version: $bv"
   show_project_motd "$root"
