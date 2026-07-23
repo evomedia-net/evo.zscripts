@@ -7,8 +7,8 @@
 # project's .env has a DATABASE_URL) into the backups folder.
 #
 # Usage:
-#   zbackup                              # every project in zconfig.json + this scripts folder
 #   zbackup <project> [<project> ...]
+#   zbackup all                          # every project in zconfig.json + this scripts folder
 #   zbackup scripts                      # just this scripts folder ('scripts' is a reserved word)
 #   zbackup pyapp --tag "pre-migration"
 #
@@ -30,8 +30,18 @@ while [ $# -gt 0 ]; do
 done
 
 BACKUP_ROOT="$(z_path "$(zq '.paths.backupsLocal')")"
-include_scripts=0
+
+# Require an explicit target: bare invocation shows usage instead of quietly
+# backing up everything - 'all' is explicit, matching zdeploy.
 if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zbackup <project> [<project> ...] | all | scripts  [--tag \"label\"]"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  dim "  'all' backs up every project plus this scripts folder; 'scripts' just this folder."
+  exit 1
+fi
+
+include_scripts=0
+if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
   projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done < <(zproj_keys)
   include_scripts=1
 else
