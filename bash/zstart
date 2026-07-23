@@ -44,7 +44,13 @@ warn_if_privileged_port() {  # <port>
 detach() {  # <key> <workdir> <cmd...>
   local key="$1" dir="$2"; shift 2
   local log="/tmp/zstart-${key}.log"
-  ( cd "$dir" && nohup "$@" >"$log" 2>&1 & )
+  # Sever every fd tied to this shell before exec'ing the long-lived server:
+  # stdin<-/dev/null, stdout/stderr->log, and CLOSE the ztokens tracking fds
+  # (3/4 = saved stdout/stderr; 1/2 fed the capture FIFO). If the server keeps
+  # any open, the parent's EXIT-trap footer (a `tee` on the FIFO) never gets
+  # EOF and `zstart --detached` hangs instead of returning.
+  ( cd "$dir" && exec </dev/null >"$log" 2>&1 3>&- 4>&-; exec nohup "$@" ) &
+  disown 2>/dev/null || true
   ok "Started in detached mode (logs: $log)."
   dim "Use zkill $key to stop it."
 }
