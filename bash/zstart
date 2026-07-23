@@ -66,10 +66,12 @@ start_prep() {  # <key>
     dim "  env $name=$val"
   done < <(jq -r --arg k "$key" '.projects[$k].start.env // {} | to_entries[] | "\(.key)\t\(.value)"' "$ZCONFIG")
   if [ "$(zproj "$key" .start.gitPull)" = "true" ] && [ -d "$root/.git" ]; then
-    local last
-    last="$( (cd "$root" && git pull --ff-only 2>&1) | tail -1 )"
-    dim "  git pull: $last"
-    (cd "$root" && git rev-parse HEAD >/dev/null 2>&1) || warn "  Auto-pull failed - run 'git pull' manually if needed."
+    # GIT_TERMINAL_PROMPT=0 so a repo that needs credentials fails fast instead
+    # of blocking the server start on an interactive "Username for ..." prompt.
+    local out rc
+    out="$( (cd "$root" && GIT_TERMINAL_PROMPT=0 git pull --ff-only 2>&1) )"; rc=$?
+    dim "  git pull: $(printf '%s\n' "$out" | tail -1)"
+    [ "$rc" -eq 0 ] || warn "  Auto-pull skipped (exit $rc) - starting with the current checkout. (git needs credentials here, or set start.gitPull=false)"
   fi
 }
 
