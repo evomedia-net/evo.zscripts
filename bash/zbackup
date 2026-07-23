@@ -46,24 +46,29 @@ ts()         { date +%Y%m%d-%H%M%S; }
 tag_suffix() { [ -n "$tag" ] && printf '_%s' "$(printf '%s' "$tag" | tr -s '[:space:]' '_')"; }
 
 # Dump the project's Postgres database if its .env declares a DATABASE_URL.
-# Checks <root>/.env, then <root>/backend/.env. Returns 0 and writes $2 on success.
+# Checks <root>/.env, then <root>/backend/.env.
+# Exit codes:  0 = dumped ($2 written)   1 = dump attempted but failed
+#              2 = no local database configured (no .env / no DATABASE_URL)
 local_pg_dump() {  # <root> <out_path>
-  local root="$1" out="$2" env_file db_url
+  local root="$1" out="$2" env_file db_url err_out
   env_file="$root/.env"; [ -f "$env_file" ] || env_file="$root/backend/.env"
-  [ -f "$env_file" ] || return 1
+  [ -f "$env_file" ] || return 2
   db_url="$(grep -m1 '^DATABASE_URL=' "$env_file" | cut -d= -f2- | tr -d '[:space:]')"
-  [ -n "$db_url" ] || return 1
+  [ -n "$db_url" ] || return 2
   db_url="$(printf '%s' "$db_url" | sed -E 's|^postgresql\+[^:]+://|postgresql://|')"
   if [[ "$db_url" =~ ^postgresql://([^:]+):([^@]+)@([^:]+):([0-9]+)/([^?]+) ]]; then
     local user="${BASH_REMATCH[1]}" pass="${BASH_REMATCH[2]}" host="${BASH_REMATCH[3]}"
     local port="${BASH_REMATCH[4]}" db="${BASH_REMATCH[5]}"
     command -v pg_dump >/dev/null 2>&1 || { err '    pg_dump not installed - skipping PG backup'; return 1; }
-    if PGPASSWORD="$(z_urldecode "$pass")" pg_dump -h "$host" -p "$port" -U "$user" -d "$db" -F p -f "$out" 2>/dev/null \
+    # Capture stderr so a failure is diagnosable (version mismatch, unreachable
+    # host, auth) instead of a bare "pg_dump failed".
+    if err_out="$(PGPASSWORD="$(z_urldecode "$pass")" pg_dump -h "$host" -p "$port" -U "$user" -d "$db" -F p -f "$out" 2>&1)" \
        && [ -f "$out" ]; then
       ok "    PostgreSQL dump: $(awk -v b="$(wc -c < "$out")" 'BEGIN{printf "%.1f", b/1024}') KB"
       return 0
     fi
-    err "    pg_dump failed"
+    err "    pg_dump failed ($host:$port/$db as $user):"
+    printf '%s\n' "$err_out" | grep -v '^[[:space:]]*$' | sed 's/^/      /' >&2
     return 1
   fi
   err '    Could not parse DATABASE_URL - skipping PG backup'
@@ -87,8 +92,12 @@ backup_project() {  # <key>
   dump_dir="$(mktemp -d "${TMPDIR:-/tmp}/zbackup_${key}_XXXXXX")"
   db_dump="$dump_dir/database_pg.sql"
   warn "  [1/3] Checking for a local database to dump..."
-  if local_pg_dump "$root" "$db_dump"; then extra="$db_dump"
-  else dim "    No local DATABASE_URL - source-only backup."; fi
+  local_pg_dump "$root" "$db_dump"
+  case $? in
+    0) extra="$db_dump" ;;
+    2) dim  "    No local DATABASE_URL - source-only backup." ;;
+    *) warn "    Database dump failed (see above) - continuing with source-only backup." ;;
+  esac
 
   warn "  [2/3] Archiving source..."
   local excl=()
