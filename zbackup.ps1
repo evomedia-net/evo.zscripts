@@ -6,8 +6,8 @@
 # project's .env has a DATABASE_URL) into the backups folder.
 #
 # Usage:
-#   zbackup                              # every project in zconfig.json + this scripts folder
 #   zbackup <project> [<project> ...]
+#   zbackup all                          # every project in zconfig.json + this scripts folder
 #   zbackup scripts                      # just this scripts folder ('scripts' is a reserved word)
 #   zbackup pyapp -Tag "pre-migration"
 #
@@ -26,8 +26,22 @@ Start-ZTracking
 $cfg = Get-ZConfig
 $ProjectsBackupRoot = $cfg.paths.backupsLocal
 
-$includeScripts = $false
+# Tolerate switch-style args (zbackup -myproject) from muscle memory.
+$Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
+
+# No args shows usage instead of quietly backing up everything — 'all' is
+# explicit, matching zdeploy and the other z-commands.
 if ($Projects.Count -eq 0) {
+    $keys = (Get-ZProjectKeys) -join ', '
+    Write-Host ""
+    Write-Host "Usage: zbackup <project> [<project> ...] | all | scripts  [-Tag `"label`"]" -ForegroundColor Yellow
+    Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
+    Write-Host "  'all' backs up every project plus this scripts folder; 'scripts' just this folder." -ForegroundColor Gray
+    Stop-ZTracking; exit 1
+}
+
+$includeScripts = $false
+if ($Projects -contains 'all') {
     $Projects = @(Get-ZProjectKeys)
     $includeScripts = $true
 } elseif ($Projects -contains 'scripts') {
@@ -61,11 +75,14 @@ function Invoke-LocalPgDump {
     $dbLine = @(Get-Content -LiteralPath $envFile | Where-Object { $_ -match "^DATABASE_URL=" } | Select-Object -First 1)
     if ($dbLine.Count -eq 0) { return $false }
 
-    $dbUrl = ($dbLine[0] -replace "^DATABASE_URL=", "").Trim()
-    $dbUrl = $dbUrl -replace '^postgresql\+[^:]+://', 'postgresql://'
+    # Strip surrounding quotes (Prisma-style .env values are double-quoted),
+    # accept postgres:// and postgresql+driver:// schemes, and treat the
+    # port as optional (Postgres default 5432).
+    $dbUrl = ($dbLine[0] -replace "^DATABASE_URL=", "").Trim().Trim('"').Trim("'")
+    $dbUrl = $dbUrl -replace '^postgres(ql)?(\+[^:]+)?://', 'postgresql://'
     $rx = [regex]::Match(
         $dbUrl,
-        '^postgresql://(?<user>[^:]+):(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)/(?<db>[^?]+)'
+        '^postgresql://(?<user>[^:@/]+):(?<pass>[^@]+)@(?<host>[^:/?]+)(:(?<port>\d+))?/(?<db>[^?\s]+)'
     )
     if (-not $rx.Success) {
         Write-Host '    Could not parse DATABASE_URL - skipping PG backup' -ForegroundColor Red
@@ -74,7 +91,7 @@ function Invoke-LocalPgDump {
     $env:PGPASSWORD = [Uri]::UnescapeDataString($rx.Groups['pass'].Value)
     $pgUser = $rx.Groups['user'].Value
     $pgHost = $rx.Groups['host'].Value
-    $pgPort = $rx.Groups['port'].Value
+    $pgPort = if ($rx.Groups['port'].Success) { $rx.Groups['port'].Value } else { '5432' }
     $pgDb   = $rx.Groups['db'].Value
 
     $pgDump = "pg_dump"
