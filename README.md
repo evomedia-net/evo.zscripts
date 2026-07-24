@@ -115,7 +115,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 |---|---|
 | `zstart <key> ...` | Start local dev server(s) |
 | `zstartd <key> ...` | Same, detached (new window, returns immediately) |
-| `zkill <key> ...` | Kill local dev server(s) by port |
+| `zkill <key> ... \| all` | Kill local dev server(s) by port |
 | `zrestart <key> ...` | Kill + start in one step |
 | `zrestartd <key> ...` | Kill + start detached |
 | `zdeploy <key> ... \| all` | Zip → upload → rebuild → verify a project on the server |
@@ -147,14 +147,15 @@ zstartd nextapp                    # detached: window opens, prompt returns
 #### `zkill` — stop dev servers
 
 ```
-zkill <project> [<project> ...] [-Port N] [-KillAll]
+zkill <project> [<project> ...] | all  [-Port N] [-KillAll]
 ```
 
-Finds whatever is LISTENING on each project's dev port and kills it — along with its whole process tree, children first. That matters for auto-reloading servers (uvicorn/watchfiles, nodemon): their worker processes inherit the listening socket and would otherwise survive as orphans, serving stale code. `-KillAll` also hunts down stray `node`/`python`/`next-server` processes whose command line references the project folder.
+Finds whatever is LISTENING on each project's dev port and kills it — along with its whole process tree, children first. That matters for auto-reloading servers (uvicorn/watchfiles, nodemon): their worker processes inherit the listening socket and would otherwise survive as orphans, serving stale code. `-KillAll` also hunts down stray `node`/`python`/`next-server` processes whose command line references the project folder. `all` targets every project that has a dev port — the one-shot "stop everything I've got running locally".
 
 ```powershell
 zkill viteapp                # free the port
 zkill pyapp viteapp nextapp  # nuke everything
+zkill all                    # stop every project's dev server
 zkill nextapp -KillAll       # also kill orphaned runtime processes
 ```
 

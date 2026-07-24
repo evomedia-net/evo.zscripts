@@ -26,9 +26,24 @@ Start-ZTracking
 if ($Projects.Count -eq 0) {
     $keys = (Get-ZProjectKeys) -join ', '
     Write-Host ""
-    Write-Host "Usage: zkill <project> [<project> ...] [-Port N] [-KillAll]" -ForegroundColor Yellow
+    Write-Host "Usage: zkill <project> [<project> ...] | all  [-Port N] [-KillAll]" -ForegroundColor Yellow
     Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
+    Write-Host "  'all' stops the dev server of every project that has one." -ForegroundColor Gray
     Stop-ZTracking; exit 1
+}
+
+# Tolerate switch-style args (zkill -myproject) from muscle memory.
+$Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
+
+# 'all' -> every project that actually has a local dev server (a ports.dev).
+if ($Projects -contains 'all') {
+    $cfg = Get-ZConfig
+    $Projects = @(Get-ZProjectKeys | Where-Object { $cfg.projects.$_.ports -and $cfg.projects.$_.ports.dev })
+    if ($Projects.Count -eq 0) {
+        Write-Host "No projects have a dev port to kill." -ForegroundColor Yellow
+        Stop-ZTracking; exit 0
+    }
+    Write-Host "Killing dev servers for: $($Projects -join ', ')" -ForegroundColor Cyan
 }
 
 foreach ($key in $Projects) {

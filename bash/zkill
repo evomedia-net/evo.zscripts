@@ -26,9 +26,22 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "${#projects[@]}" -eq 0 ]; then
-  warn "Usage: zkill <project> [<project> ...] [--port N] [--kill-all]"
+  warn "Usage: zkill <project> [<project> ...] | all  [--port N] [--kill-all]"
   dim  "  Projects in zconfig.json: $(zproj_csv)"
+  dim  "  'all' stops the dev server of every project that has one."
   exit 1
+fi
+
+# 'all' -> every project that actually has a local dev server (a ports.dev).
+if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
+  dev_keys=(); while IFS= read -r _zl || [ -n "$_zl" ]; do dev_keys+=("$_zl"); done \
+    < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.ports.dev != null) | .key' "$ZCONFIG")
+  if [ "${#dev_keys[@]}" -eq 0 ]; then
+    warn "No projects have a dev port to kill."
+    exit 0
+  fi
+  projects=("${dev_keys[@]}")
+  info "Killing dev servers for: $(printf '%s ' "${projects[@]}")"
 fi
 
 # --kill-all (kill stray project processes beyond the dev-port listener) isn't
