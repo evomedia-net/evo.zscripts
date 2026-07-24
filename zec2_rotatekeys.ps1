@@ -20,8 +20,10 @@
 #   * The current server .env is copied to a timestamped .bak before any change.
 #   * -WhatIf prints the exact plan and touches nothing. High-impact, so it
 #     confirms before writing unless you pass -Confirm:$false.
-#   * It does NOT restart the app unless you pass -Restart (prod restarts are a
-#     deliberate, separate decision).
+#   * It does NOT touch the running app unless you pass -Restart, which
+#     recreates the container (up -d --force-recreate) so it reloads the new
+#     .env - a plain `restart` reuses the old environment. Prod restarts are a
+#     deliberate, separate decision.
 #
 # Usage:
 #   zec2_rotatekeys <project> [-Rotate K1,K2] [-Set K1,K2] [-EnvFile rel/path]
@@ -167,13 +169,13 @@ try {
     Write-Host "  Env file: $remoteEnv" -ForegroundColor DarkGray
     if ($Rotate.Count) { Write-Host "  Rotate (fresh random, server-side): $($Rotate -join ', ')" -ForegroundColor Gray }
     if ($Set.Count) { Write-Host "  Set (masked prompt, streamed):      $($Set -join ', ')" -ForegroundColor Gray }
-    if ($Restart) { Write-Host "  Then: restart the app container" -ForegroundColor Gray }
+    if ($Restart) { Write-Host "  Then: recreate the app container (reloads the new .env)" -ForegroundColor Gray }
     Write-Host ""
 
     $action = @()
     if ($Rotate.Count) { $action += "rotate [$($Rotate -join ',')]" }
     if ($Set.Count) { $action += "set [$($Set -join ',')]" }
-    if ($Restart) { $action += "restart" }
+    if ($Restart) { $action += "recreate" }
     if (-not $PSCmdlet.ShouldProcess("${target}:$remoteEnv", ($action -join ' + '))) {
         Write-Host "Preview only - no changes made." -ForegroundColor Yellow
         Stop-ZTracking; exit 0
@@ -244,18 +246,22 @@ try {
         ssh @sshOpts $target "rm -f $remoteHelper" | Out-Null
     }
 
-    # --- optional app restart -------------------------------------------------
+    # --- optional app recreate ------------------------------------------------
+    # A plain `docker compose restart` reuses the container's existing
+    # environment, so it would NOT pick up the .env we just edited. `up -d
+    # --force-recreate` rebuilds the container from current config, reloading
+    # env_file / environment - the reliable way to apply the new secrets.
     $restarted = $false
     if ($Restart -and $done.Count -gt 0) {
         $composeDir = if ($proj.remote.composeDir) { $proj.remote.composeDir } else { $remotePath }
         $svc = if ($proj.remote.appService) { $proj.remote.appService } else { "app" }
         Write-Host ""
-        Write-Host "  Restarting service '$svc' in $composeDir ..." -ForegroundColor Cyan
-        ssh @sshOpts $target "cd $composeDir && sudo COMPOSE_BAKE=false docker compose restart $svc"
-        if ($LASTEXITCODE -eq 0) { Write-Host "  Restarted $svc." -ForegroundColor Green; $restarted = $true }
-        else { Write-Host "  WARNING: restart of '$svc' failed (exit $LASTEXITCODE) - restart it manually." -ForegroundColor Red }
+        Write-Host "  Recreating service '$svc' in $composeDir (to load the new .env) ..." -ForegroundColor Cyan
+        ssh @sshOpts $target "cd $composeDir && sudo COMPOSE_BAKE=false docker compose up -d --force-recreate $svc"
+        if ($LASTEXITCODE -eq 0) { Write-Host "  Recreated $svc." -ForegroundColor Green; $restarted = $true }
+        else { Write-Host "  WARNING: recreate of '$svc' failed (exit $LASTEXITCODE) - apply it manually: docker compose up -d --force-recreate $svc" -ForegroundColor Red }
     } elseif ($Restart) {
-        Write-Host "  Skipping restart - no keys were changed." -ForegroundColor Yellow
+        Write-Host "  Skipping recreate - no keys were changed." -ForegroundColor Yellow
     }
 
     # --- summary --------------------------------------------------------------
@@ -265,9 +271,9 @@ try {
     if ($failed.Count) { Write-Host "  Failed:  $($failed -join ', ')" -ForegroundColor Red }
     Write-Host "  Backup:  $backup  (delete once verified)" -ForegroundColor DarkGray
     if ($Restart -and -not $restarted -and $done.Count -gt 0) {
-        Write-Host "  Restart: NOT done - restart the app so it loads the new values." -ForegroundColor Yellow
+        Write-Host "  Recreate: NOT done - apply the new values with: docker compose up -d --force-recreate <svc>" -ForegroundColor Yellow
     } elseif (-not $Restart -and $done.Count -gt 0) {
-        Write-Host "  Note:    the app is still running with the OLD values - restart it (or re-run with -Restart)." -ForegroundColor Yellow
+        Write-Host "  Note:    the app is still running with the OLD values - re-run with -Restart, or 'docker compose up -d --force-recreate <svc>' on the server." -ForegroundColor Yellow
     }
     Write-Host ""
 

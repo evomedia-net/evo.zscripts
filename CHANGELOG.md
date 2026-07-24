@@ -30,8 +30,10 @@ Notable changes to the Evomedia.net Token Savers.
   masked prompt and streams it over SSH stdin — never a command argument,
   never echoed. Backs the server `.env` up to a timestamped `.bak` first,
   updates the key atomically (matches or appends), auto-detects
-  `backend/.env` from `deploy.preserve`, restarts only with `-Restart`, and
-  `-WhatIf` previews the plan without touching anything.
+  `backend/.env` from `deploy.preserve`, and with `-Restart` **recreates**
+  the container (`up -d --force-recreate`, so the new values actually load —
+  a plain restart keeps the old environment). `-WhatIf` previews the plan
+  without touching anything.
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
   `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the
