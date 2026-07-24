@@ -4,7 +4,7 @@ Created by Kelly Michels · dev@evomedia.net
 Licensed under the MIT License. See LICENSE.
 -->
 
-# Evomedia.net Token Savers
+# zscripts Token Savers
 
 When an AI coding agent orchestrates your infrastructure — starting dev servers, deploying to EC2, diagnosing 502s — it spends hundreds to thousands of tokens per operation on SSH plumbing, Docker output, and retry logic. Those tokens should go to code.
 
