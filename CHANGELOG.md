@@ -34,6 +34,11 @@ Notable changes to the Evomedia.net Token Savers.
   the container (`up -d --force-recreate`, so the new values actually load —
   a plain restart keeps the old environment). `-WhatIf` previews the plan
   without touching anything.
+- **`zkill all`** — `zkill` now accepts `all`, stopping the dev server of
+  every project that has a `ports.dev` (edge/docker stacks with no local dev
+  server are skipped). Brings it in line with `zdeploy all` / `zbackup all`;
+  the one-shot "stop everything I've got running locally". Ported to both the
+  PowerShell and bash versions.
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
   `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the
