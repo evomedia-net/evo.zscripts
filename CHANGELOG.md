@@ -22,6 +22,16 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **`zec2_rotatekeys` — safely rotate/reset server-side secrets** — a new
+  tool for when a secret leaks or a deploy overwrites a production `.env`
+  with dev values. `-Rotate KEY` regenerates a key **on the server**
+  (`openssl rand -hex 32`) so the new value never leaves the box; `-Set KEY`
+  takes an operator-known value (e.g. `DATABASE_URL`, `ADMIN_EMAIL`) from a
+  masked prompt and streams it over SSH stdin — never a command argument,
+  never echoed. Backs the server `.env` up to a timestamped `.bak` first,
+  updates the key atomically (matches or appends), auto-detects
+  `backend/.env` from `deploy.preserve`, restarts only with `-Restart`, and
+  `-WhatIf` previews the plan without touching anything.
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
   `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the

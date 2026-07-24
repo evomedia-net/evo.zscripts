@@ -122,6 +122,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zec2 [<key> ...]` | Quick reachability check (TCP + HTTP + live build version) |
 | `zec2online [<key> ...]` | Deep health check; auto-starts downed stacks, streams diagnostics |
 | `zrepair <key> ...` | Audit + repair compose/proxy state on the server |
+| `zec2_rotatekeys <key>` | Rotate/reset secret keys in a project's server-side `.env` (values generated server-side; never printed) |
 | `zbackup <key> ... \| all` | Zip local project sources (+ DB dump) to the backups folder |
 | `zbackup_ec2 [<key> ...]` | Pull DB dumps + server-side data files down from the server |
 | `zsync [<key>]` | Copy new backups offsite (or build + mirror a vite dist) |
@@ -220,6 +221,22 @@ zstop <project> [<project> ...]
 ```
 
 `docker compose down` for the selected stacks on the server. Data volumes are preserved; `zdeploy <project>` brings a stack back. (PowerShell script only, no `.cmd` wrapper.)
+
+#### `zec2_rotatekeys` — rotate server-side secrets
+
+```
+zec2_rotatekeys <project> [-Rotate KEY,KEY] [-Set KEY,KEY] [-EnvFile rel/path] [-Restart] [-WhatIf]
+```
+
+For when a secret leaks or a deploy overwrites a production `.env` with dev values: rotate or reset keys in a project's **server-side** `.env` without the values ever passing through this machine's shell history, a command argument, or your screen. `-Rotate` keys are regenerated **on the server** with `openssl rand -hex 32` — the new value is written straight into the `.env` there and never leaves the box. `-Set` keys are typed into a masked prompt and streamed to the server over SSH stdin (never a command argument, never echoed), for operator-known values like `DATABASE_URL` or `ADMIN_EMAIL`. The current server `.env` is copied to a timestamped `.bak` before any change; the KEY line is updated atomically, matching an existing key or appending it. The env file is auto-detected from the project's `deploy.preserve` (first `*.env`) or defaults to `.env` — override with `-EnvFile backend/.env`. Nothing restarts unless you pass `-Restart`. Being high-impact, it confirms before writing; `-WhatIf` prints the exact plan and changes nothing.
+
+```powershell
+# Preview only — see exactly what would change, change nothing:
+zec2_rotatekeys pyapp -Rotate JWT_SECRET -Set DATABASE_URL,ADMIN_EMAIL -WhatIf
+
+# Regenerate the JWT secret, restore the operator-known values, then restart:
+zec2_rotatekeys pyapp -Rotate JWT_SECRET -Set DATABASE_URL,ADMIN_EMAIL,ADMIN_PASSWORD -Restart
+```
 
 ### Backups
 
