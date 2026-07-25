@@ -177,10 +177,16 @@ function Get-ArchiveExcludes {
     $byKind = switch ([string]$Project.kind) {
         "python" {
             $list = @(".venv", "venv", "__pycache__", ".pytest_cache", ".nicegui", "archive", "dist", "build", "htmlcov")
-            if (-not $ForBackup) { $list += "uploads" }   # deploys exclude user uploads; backups keep them
+            # Deploys exclude user uploads + local .env secrets (server keeps its
+            # own, preserved across deploys); backups keep both for completeness.
+            if (-not $ForBackup) { $list += @("uploads", ".env", ".env.local", ".env.production") }
             $list
         }
-        "vite"   { @("node_modules", "dist") }
+        "vite"   {
+            $list = @("node_modules", "dist")
+            if (-not $ForBackup) { $list += @(".env", ".env.local", ".env.production") }
+            $list
+        }
         "nextjs" { @("node_modules", ".next", ".env", ".env.local", ".env.production", ".vercel", "coverage", "out", "build", "next-env.d.ts") }
         default  { @() }
     }
