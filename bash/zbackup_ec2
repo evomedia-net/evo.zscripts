@@ -7,8 +7,8 @@
 # with a "db" config block, plus a zip of server-side data dirs (uploads/archive/dist).
 #
 # Usage:
-#   zbackup_ec2                          # every project with a remote.path
 #   zbackup_ec2 <project> [<project> ...]
+#   zbackup_ec2 all                      # every project with a remote.path
 #
 # Output:
 #   <paths.backupsEc2>/<project>/<timestamp>_<project>_db.sql    (projects with a db block)
@@ -21,7 +21,14 @@ z_need_config
 z_require ssh scp
 
 projects=("$@")
+# Require an explicit target; 'all' pulls every project with a remote.path.
 if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zbackup_ec2 <project> [<project> ...] | all"
+  dim  "  Projects in zconfig.json: $(zproj_csv)"
+  dim  "  'all' pulls a server backup of every project with a remote.path."
+  exit 1
+fi
+if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
   projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done \
     < <(jq -r '.projects | to_entries[] | select((.key | startswith("_") | not) and .value.remote.path != null) | .key' "$ZCONFIG")
 fi
