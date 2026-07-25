@@ -6,17 +6,25 @@
 # zbackup_and_sync — run backups, then sync the backups folder offsite.
 #
 # Usage:
-#   zbackup_and_sync                          # backup everything + sync
 #   zbackup_and_sync <project> [<project> ...]
+#   zbackup_and_sync all                      # backup everything + sync
 #
 # Cron example (see setup_backup_schedule):
-#   0 2 * * *  /path/to/zscripts/bash/zbackup_and_sync >> ~/zbackup.log 2>&1
+#   0 2 * * *  /path/to/zscripts/bash/zbackup_and_sync all >> ~/zbackup.log 2>&1
 
 set -uo pipefail
 _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_HERE/zhelpers.sh"
 z_track_start "$@"
 z_need_config
+
+# Require an explicit target (matching zbackup/zdeploy); 'all' backs up everything.
+if [ $# -eq 0 ]; then
+  printf '\n'; warn "Usage: zbackup_and_sync <project> [<project> ...] | all"
+  dim "  Projects in zconfig.json: $(zproj_csv)"
+  dim "  'all' backs up every project plus the scripts folder, then syncs offsite."
+  exit 1
+fi
 
 printf '\n'
 info "============================================"
