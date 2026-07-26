@@ -29,6 +29,7 @@
       "kind":        "python",
       "localRoot":   "/home/youruser/code/pyapp",
       "startModule": "pyapp.main",
+      "_startApp_note": "ASGI/FastAPI app? Use \"startApp\": \"app.main:app\" instead of startModule (runs uvicorn --port <dev> --reload).",
       "install":     "-e .",
       "ports":       { "dev": 8080 },
       "domain":      "pyapp.yourdomain.com",

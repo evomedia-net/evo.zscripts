@@ -6,8 +6,8 @@
 # zec2 — quick reachability check (TCP + HTTP + live build version) for deployed projects.
 #
 # Usage:
-#   zec2                          # every project with a "domain" in zconfig.json
 #   zec2 <project> [<project> ...]
+#   zec2 all                      # every project with a "domain" in zconfig.json
 #   zec2 viteapp --host 203.0.113.10
 
 set -uo pipefail
@@ -28,6 +28,12 @@ done
 HOST="${host_override:-$(zec2_ip)}"
 
 if [ "${#projects[@]}" -eq 0 ]; then
+  printf '\n'; warn "Usage: zec2 <project> [<project> ...] | all  [--host <ip>]"
+  dim  "  Projects in zconfig.json: $(zproj_csv)"
+  dim  "  'all' checks every project with a 'domain' configured."
+  exit 1
+fi
+if printf '%s\n' "${projects[@]}" | grep -qx 'all'; then
   projects=(); while IFS= read -r _zl || [ -n "$_zl" ]; do projects+=("$_zl"); done < <(zproj_keys_with_domain)
   if [ "${#projects[@]}" -eq 0 ]; then
     warn "No projects with a 'domain' configured in zconfig.json."

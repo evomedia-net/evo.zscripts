@@ -5,8 +5,8 @@
 # zec2.ps1 — quick reachability check (TCP + HTTP + live build version) for deployed projects.
 #
 # Usage:
-#   zec2                          # every project with a "domain" in zconfig.json
 #   zec2 <project> [<project> ...]
+#   zec2 all                      # every project with a "domain" in zconfig.json
 #   zec2 viteapp -HostName 203.0.113.10
 #
 param(
@@ -23,6 +23,13 @@ $cfg = Get-ZConfig
 if (-not $HostName) { $HostName = $cfg.ec2.ip }
 
 if ($Projects.Count -eq 0) {
+    Write-Host ""
+    Write-Host "Usage: zec2 <project> [<project> ...] | all  [-HostName <ip>]" -ForegroundColor Yellow
+    Write-Host "  Projects in zconfig.json: $((Get-ZProjectKeys) -join ', ')" -ForegroundColor Gray
+    Write-Host "  'all' checks every project with a 'domain' configured." -ForegroundColor Gray
+    Stop-ZTracking; exit 1
+}
+if ($Projects -contains 'all') {
     $Projects = @(Get-ZProjectKeys | Where-Object { $cfg.projects.$_.domain })
     if ($Projects.Count -eq 0) {
         Write-Host "No projects with a 'domain' configured in zconfig.json." -ForegroundColor Yellow

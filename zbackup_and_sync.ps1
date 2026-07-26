@@ -5,11 +5,11 @@
 # zbackup_and_sync.ps1 — run backups, then sync the backups folder offsite.
 #
 # Usage:
-#   zbackup_and_sync.ps1                          # backup everything + sync
 #   zbackup_and_sync.ps1 <project> [<project> ...]
+#   zbackup_and_sync.ps1 all                      # backup everything + sync
 #
 # Scheduled Task example (see setup_backup_schedule.ps1):
-#   powershell -ExecutionPolicy Bypass -NoProfile -File "<scriptsRoot>\zbackup_and_sync.ps1"
+#   powershell -ExecutionPolicy Bypass -NoProfile -File "<scriptsRoot>\zbackup_and_sync.ps1" all
 
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
@@ -21,6 +21,18 @@ $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 . (Join-Path $ScriptRoot "ZHelpers.ps1")
 Start-ZTracking
 
+# Tolerate switch-style args from muscle memory; require an explicit target
+# ('all' included) — same convention as zbackup/zdeploy.
+$Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
+if ($Projects.Count -eq 0) {
+    $keys = (Get-ZProjectKeys) -join ', '
+    Write-Host ""
+    Write-Host "Usage: zbackup_and_sync <project> [<project> ...] | all" -ForegroundColor Yellow
+    Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
+    Write-Host "  'all' backs up every project plus the scripts folder, then syncs offsite." -ForegroundColor Gray
+    Stop-ZTracking; exit 1
+}
+
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "   Backup & Sync - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
@@ -29,11 +41,7 @@ Write-Host ""
 
 Write-Host "[1/2] Running backups..." -ForegroundColor Yellow
 $backupPath = Join-Path $ScriptRoot "zbackup.ps1"
-if ($Projects.Count -gt 0) {
-    & powershell -NoProfile -File $backupPath @Projects
-} else {
-    & powershell -NoProfile -File $backupPath
-}
+& powershell -NoProfile -File $backupPath @Projects
 $backupExitCode = $LASTEXITCODE
 
 if ($backupExitCode -ne 0) {

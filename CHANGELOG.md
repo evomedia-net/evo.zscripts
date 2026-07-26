@@ -22,6 +22,18 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **`zec2_rotatekeys` — safely rotate/reset server-side secrets** — a new
+  tool for when a secret leaks or a deploy overwrites a production `.env`
+  with dev values. `-Rotate KEY` regenerates a key **on the server**
+  (`openssl rand -hex 32`) so the new value never leaves the box; `-Set KEY`
+  takes an operator-known value (e.g. `DATABASE_URL`, `ADMIN_EMAIL`) from a
+  masked prompt and streams it over SSH stdin — never a command argument,
+  never echoed. Backs the server `.env` up to a timestamped `.bak` first,
+  updates the key atomically (matches or appends), auto-detects
+  `backend/.env` from `deploy.preserve`, and with `-Restart` **recreates**
+  the container (`up -d --force-recreate`, so the new values actually load —
+  a plain restart keeps the old environment). `-WhatIf` previews the plan
+  without touching anything.
 - **`zkill all`** — `zkill` now accepts `all`, stopping the dev server of
   every project that has a `ports.dev` (edge/docker stacks with no local dev
   server are skipped). Brings it in line with `zdeploy all` / `zbackup all`;
@@ -49,6 +61,16 @@ Notable changes to the Evomedia.net Token Savers.
   grew up on per-project switches.
 
 ### Changed
+- **`zbackup` / `zbackup_and_sync` require an explicit target** — running
+  them bare now shows usage instead of quietly backing up every project;
+  `all` does what bare invocation used to (matching `zdeploy`). The
+  scheduled task created by `setup_backup_schedule.ps1` passes `all` —
+  re-run it if your task was registered before this change.
+- **`zbackup` parses more `DATABASE_URL` styles** — double/single-quoted
+  values (Prisma convention), `postgres://` and `postgresql+driver://`
+  schemes, and URLs without an explicit port (defaults to 5432) all work;
+  previously these skipped the Postgres dump with "Could not parse
+  DATABASE_URL".
 - **`zkill` / port cleanup kills the whole process tree** — listeners on a
   project's port are now terminated children-first. Auto-reloading servers
   (uvicorn/watchfiles, nodemon) spawn workers that inherit the listening

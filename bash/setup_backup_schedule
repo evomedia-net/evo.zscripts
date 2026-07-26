@@ -30,7 +30,7 @@ if ! [[ "$hh" =~ ^[0-9]{1,2}$ && "$mm" =~ ^[0-9]{2}$ ]] || [ "$hh" -gt 23 ] || [
   err "Invalid --time '$at_time' (expected HH:MM, 24h)"; exit 1
 fi
 
-cron_line="${mm#0} ${hh#0} * * * $_HERE/zbackup_and_sync >> \$HOME/zbackup_and_sync.log 2>&1"
+cron_line="${mm#0} ${hh#0} * * * $_HERE/zbackup_and_sync all >> \$HOME/zbackup_and_sync.log 2>&1"
 
 info "=== Backup schedule (cron) ==="
 dim  "Daily at $at_time:"

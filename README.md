@@ -72,6 +72,7 @@ The example config ships with sample projects named by their kind — `pyapp`, `
       "kind":        "python",                        // python | vite | nextjs | edge | docker
       "localRoot":   "C:\\dev\\myapp",                // project folder on this machine
       "startModule": "myapp.main",                    // python kind: runs "python -m myapp.main"
+   // "startApp":    "app.main:app",                  //   ...or, for ASGI/FastAPI: uvicorn app.main:app --port <dev> --reload
       "install":     "-e .",                          // optional: pip args `zsetup` uses (auto-detects "-e ." / "-r requirements.txt")
       "ports":       { "dev": 8080, "prod": 3000 },   // local dev port / direct server port
       "domain":      "www.myapp.com",                 // public domain (health checks + verification)
@@ -125,6 +126,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zec2 [<key> ...]` | Quick reachability check (TCP + HTTP + live build version) |
 | `zec2online [<key> ...]` | Deep health check; auto-starts downed stacks, streams diagnostics |
 | `zrepair <key> ...` | Audit + repair compose/proxy state on the server |
+| `zec2_rotatekeys <key>` | Rotate/reset secret keys in a project's server-side `.env` (values generated server-side; never printed) |
 | `zbackup <key> ... \| all` | Zip local project sources (+ DB dump) to the backups folder |
 | `zbackup_ec2 [<key> ...]` | Pull DB dumps + server-side data files down from the server |
 | `zsync [<key>]` | Copy new backups offsite (or build + mirror a vite dist) |
@@ -138,7 +140,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 zstart <project> [<project> ...] [-Port N] [-BindHost <host>] [-Detached]
 ```
 
-Starts each project's dev server using the handler for its `kind`: **python** runs `python -m <startModule>` (preferring the project's `.venv`), **vite** runs `npm run dev -- --host --port`, **nextjs** runs `npm run dev` with `PORT` set. Runs `npm install` automatically if `node_modules` is missing. A project's optional `start` config block runs first — `gitPull` fast-forwards the checkout and `env` sets process environment variables. Two more opt-in conveniences: if the project has a `motd/` folder of `.txt` files, one is shown (rotating) at startup; if it has `scripts/build_version_tool.py`, the build number is bumped on each start.
+Starts each project's dev server using the handler for its `kind`: **python** runs `python -m <startModule>` — or, for an ASGI/FastAPI app, `uvicorn <startApp>` (e.g. `app.main:app`) with the dev port and `--reload` — preferring the project's `.venv`; **vite** runs `npm run dev -- --host --port`, **nextjs** runs `npm run dev` with `PORT` set. Runs `npm install` automatically if `node_modules` is missing. A project's optional `start` config block runs first — `gitPull` fast-forwards the checkout and `env` sets process environment variables. Two more opt-in conveniences: if the project has a `motd/` folder of `.txt` files, one is shown (rotating) at startup; if it has `scripts/build_version_tool.py`, the build number is bumped on each start.
 
 ```powershell
 zstart viteapp                     # dev server on its configured port
@@ -224,6 +226,22 @@ zstop <project> [<project> ...]
 ```
 
 `docker compose down` for the selected stacks on the server. Data volumes are preserved; `zdeploy <project>` brings a stack back. (PowerShell script only, no `.cmd` wrapper.)
+
+#### `zec2_rotatekeys` — rotate server-side secrets
+
+```
+zec2_rotatekeys <project> [-Rotate KEY,KEY] [-Set KEY,KEY] [-EnvFile rel/path] [-Restart] [-WhatIf]
+```
+
+For when a secret leaks or a deploy overwrites a production `.env` with dev values: rotate or reset keys in a project's **server-side** `.env` without the values ever passing through this machine's shell history, a command argument, or your screen. `-Rotate` keys are regenerated **on the server** with `openssl rand -hex 32` — the new value is written straight into the `.env` there and never leaves the box. `-Set` keys are typed into a masked prompt and streamed to the server over SSH stdin (never a command argument, never echoed), for operator-known values like `DATABASE_URL` or `ADMIN_EMAIL`. The current server `.env` is copied to a timestamped `.bak` before any change; the KEY line is updated atomically, matching an existing key or appending it. The env file is auto-detected from the project's `deploy.preserve` (first `*.env`) or defaults to `.env` — override with `-EnvFile backend/.env`. Nothing touches the running app unless you pass `-Restart`, which **recreates** the container (`docker compose up -d --force-recreate <svc>`) so it actually reloads the new `.env` — a plain `restart` would keep the old environment. Being high-impact, it confirms before writing; `-WhatIf` prints the exact plan and changes nothing.
+
+```powershell
+# Preview only — see exactly what would change, change nothing:
+zec2_rotatekeys pyapp -Rotate JWT_SECRET -Set DATABASE_URL,ADMIN_EMAIL -WhatIf
+
+# Regenerate the JWT secret, restore the operator-known values, then restart:
+zec2_rotatekeys pyapp -Rotate JWT_SECRET -Set DATABASE_URL,ADMIN_EMAIL,ADMIN_PASSWORD -Restart
+```
 
 ### Backups
 

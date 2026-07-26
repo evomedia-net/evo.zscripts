@@ -217,8 +217,11 @@ z_archive_excludes() {
   case "$kind" in
     python)
       printf '%s\n' .venv venv __pycache__ .pytest_cache .nicegui archive dist build htmlcov
-      [ "$for_backup" -eq 1 ] || printf '%s\n' uploads ;;  # deploys exclude user uploads; backups keep them
-    vite)   printf '%s\n' node_modules dist ;;
+      # deploys exclude user uploads + local .env secrets; backups keep both
+      [ "$for_backup" -eq 1 ] || printf '%s\n' uploads .env .env.local .env.production ;;
+    vite)
+      printf '%s\n' node_modules dist
+      [ "$for_backup" -eq 1 ] || printf '%s\n' .env .env.local .env.production ;;
     nextjs) printf '%s\n' node_modules .next .env .env.local .env.production .vercel coverage out build next-env.d.ts ;;
   esac
   jq -r --arg k "$key" '.projects[$k].deploy.exclude // [] | .[]' "$ZCONFIG"

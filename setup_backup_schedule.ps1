@@ -46,7 +46,7 @@ if ($existingTask) {
 $trigger  = New-ScheduledTaskTrigger -Daily -At "02:00"
 $action   = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$ScriptPath`""
+    -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$ScriptPath`" all"
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `

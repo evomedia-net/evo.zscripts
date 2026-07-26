@@ -6,8 +6,8 @@
 # build; auto-start downed stacks via docker compose and stream diagnostics.
 #
 # Usage:
-#   zec2online                          # every project with a "domain" in zconfig.json
 #   zec2online <project> [<project> ...]
+#   zec2online all                      # every project with a "domain" in zconfig.json
 #
 # Verification compares the LOCAL build version against what the server is actually
 # serving. A plain HTTP-200 check passes even when a stale cached build is live —
@@ -30,6 +30,13 @@ $SshTarget = Get-Ec2Target
 $edgeProj = Get-ZEdgeProject
 
 if ($Projects.Count -eq 0) {
+    Write-Host ""
+    Write-Host "Usage: zec2online <project> [<project> ...] | all  [-HostName <ip>]" -ForegroundColor Yellow
+    Write-Host "  Projects in zconfig.json: $((Get-ZProjectKeys) -join ', ')" -ForegroundColor Gray
+    Write-Host "  'all' deep-checks every project with a 'domain' (and auto-starts any that are down)." -ForegroundColor Gray
+    Stop-ZTracking; exit 1
+}
+if ($Projects -contains 'all') {
     $Projects = @(Get-ZProjectKeys | Where-Object { $cfg.projects.$_.domain })
     if ($Projects.Count -eq 0) {
         Write-Host "No projects with a 'domain' configured in zconfig.json." -ForegroundColor Yellow

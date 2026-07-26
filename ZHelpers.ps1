@@ -109,7 +109,16 @@ function Invoke-Ec2Step {
     )
     $cfg = Get-ZConfig
     Write-Host "  >> $Label" -ForegroundColor DarkCyan
-    ssh -o StrictHostKeyChecking=no -i $cfg.ec2.pemKey (Get-Ec2Target) $Bash
+    # ssh can emit warnings on stderr (e.g. Docker's "COMPOSE_BAKE is
+    # deprecated" notice during a compose build). The deploy runs under
+    # ErrorActionPreference='Stop', and PowerShell 5.1 turns any native stderr
+    # line into a terminating NativeCommandError — aborting the deploy before we
+    # ever read the real exit code, even though the remote step succeeded. Drop
+    # to Continue locally (function-scoped, auto-reverts) and flatten stderr
+    # into normal output, so only the actual exit status decides success.
+    $ErrorActionPreference = 'Continue'
+    ssh -o StrictHostKeyChecking=no -i $cfg.ec2.pemKey (Get-Ec2Target) $Bash 2>&1 |
+        ForEach-Object { "$_" }
     if ($LASTEXITCODE -ne 0) {
         $msg = "Remote step failed: '$Label' (exit $LASTEXITCODE)."
         if ($FailHint) { $msg += " $FailHint" }
@@ -177,10 +186,16 @@ function Get-ArchiveExcludes {
     $byKind = switch ([string]$Project.kind) {
         "python" {
             $list = @(".venv", "venv", "__pycache__", ".pytest_cache", ".nicegui", "archive", "dist", "build", "htmlcov")
-            if (-not $ForBackup) { $list += "uploads" }   # deploys exclude user uploads; backups keep them
+            # Deploys exclude user uploads + local .env secrets (server keeps its
+            # own, preserved across deploys); backups keep both for completeness.
+            if (-not $ForBackup) { $list += @("uploads", ".env", ".env.local", ".env.production") }
             $list
         }
-        "vite"   { @("node_modules", "dist") }
+        "vite"   {
+            $list = @("node_modules", "dist")
+            if (-not $ForBackup) { $list += @(".env", ".env.local", ".env.production") }
+            $list
+        }
         "nextjs" { @("node_modules", ".next", ".env", ".env.local", ".env.production", ".vercel", "coverage", "out", "build", "next-env.d.ts") }
         default  { @() }
     }
