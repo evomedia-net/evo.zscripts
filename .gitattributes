@@ -1,12 +1,3 @@
-# Bash scripts must stay LF — CRLF breaks the shebang on Linux/macOS/WSL.
-bash/** text eol=lf
-
-# The bats suites are bash too, and they live outside bash/ — without this a
-# Windows checkout gets CRLF and `bats tests/bash` fails there (including when
-# run through WSL against the Windows working copy).
-tests/bash/** text eol=lf
-*.bats text eol=lf
-
 # PowerShell/cmd are happiest with CRLF on Windows.
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
