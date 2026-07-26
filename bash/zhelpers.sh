@@ -81,7 +81,14 @@ zproj()      { jq -r --arg k "$1" ".projects[\$k]$2 // empty" "$ZCONFIG"; }
 # A project's local root, translated to the host's native path form.
 zproj_root() { z_path "$(zproj "$1" .localRoot)"; }
 zproj_require() {
-  if [ "$(jq -r --arg k "$1" '(.projects[$k] != null)' "$ZCONFIG")" != "true" ]; then
+  # Keys starting with "_" are comments, not projects (zproj_keys already skips
+  # them). Reject them here too, or `zkill _comment` would sail past this guard
+  # on the mere existence of the key and then act on a string as if it were a
+  # project - PowerShell's Get-ZProject has always refused them.
+  case "$1" in
+    _*) err "Unknown project key '$1'. Available: $(zproj_csv)"; exit 1 ;;
+  esac
+  if [ "$(jq -r --arg k "$1" '(.projects[$k] | type) == "object"' "$ZCONFIG")" != "true" ]; then
     err "Unknown project key '$1'. Available: $(zproj_csv)"
     exit 1
   fi
