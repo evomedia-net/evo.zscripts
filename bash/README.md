@@ -78,9 +78,29 @@ Where it's written, first match wins:
 Set `ZTOKENS_MODEL` to tag records with a specific model; it defaults to
 `est. chars/3.5`.
 
+## Tests
+
+The bash port has its own [bats](https://github.com/bats-core/bats-core) suite, mirroring the PowerShell Pester tests assertion-for-assertion where the two are meant to agree — the exclude lists, config accessors, `z_path` translation, and argument handling:
+
+```bash
+bats tests/bash
+```
+
+Install bats without root:
+
+```bash
+git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+/tmp/bats-core/install.sh ~/.local        # then ensure ~/.local/bin is on PATH
+```
+
+A fixture config is injected through `ZCONFIG`, so the suite never reads your real `zconfig.json` and passes on a machine that has never been configured. Tests that run the scripts stay on paths that exit before doing any work; only `zkill` runs with a real target, against deliberately unused ports.
+
+Why a separate suite: the bash port reimplements the exclude lists and argument parsing, so it can drift from the PowerShell side independently. Both suites assert the same deploy-vs-backup rule — **deploys drop `.env*` and `uploads/`, backups keep them** — because that one has broken in production.
+
 ## Differences from the PowerShell versions
 
 - `zsync <viteproject>` mirrors `dist/` with `rsync -a --delete` (robocopy /MIR equivalent).
 - Scheduling uses cron (`setup_backup_schedule`) instead of Windows Task Scheduler.
 - The MOTD banner picks a random `motd/*.txt` instead of tracking a shuffle rotation.
 - Windows-only helpers (`.cmd` launchers) don't exist — scripts are directly executable.
+- **A leading dash on a project key is only tolerated by `zdeploy`.** PowerShell accepts `-myapp` anywhere; in bash every other script treats `-myapp` as an unknown option and exits 1. Tracked as a parity gap — use bare keys in the bash port.
