@@ -1,0 +1,89 @@
+{
+  "_comment": "Fixture config for the Pester suite. Not a real config - values are deliberately fake and are asserted against in ZHelpers.Tests.ps1. Keys starting with _ must be ignored by Get-ZProjectKeys.",
+
+  "ec2": {
+    "ip":        "203.0.113.10",
+    "user":      "testuser",
+    "pemKey":    "C:\\fixtures\\test.pem",
+    "stackRoot": "/home/testuser/stack"
+  },
+
+  "paths": {
+    "temp":            "C:\\fixtures\\temp",
+    "backupsLocal":    "C:\\fixtures\\backups\\projects",
+    "backupsEc2":      "C:\\fixtures\\backups\\ec2",
+    "scriptsRoot":     "C:\\fixtures\\zscripts",
+    "oneDriveBackups": ""
+  },
+
+  "projects": {
+    "_note": "This underscore key must never appear as a project.",
+
+    "pyapp": {
+      "label":       "Fixture Python App",
+      "kind":        "python",
+      "localRoot":   "C:\\fixtures\\pyapp",
+      "startModule": "pyapp.main",
+      "ports":       { "dev": 8080 },
+      "domain":      "pyapp.example.com",
+      "remote": {
+        "path":       "/home/testuser/stack/pyapp",
+        "composeDir": "/home/testuser/stack/pyapp/docker",
+        "appService": "app"
+      },
+      "deploy": {
+        "zipName": "PyAppDeploy.zip",
+        "exclude": ["docs", "fixtures-extra"]
+      }
+    },
+
+    "viteapp": {
+      "label":     "Fixture Vite Site",
+      "kind":      "vite",
+      "localRoot": "C:\\fixtures\\viteapp",
+      "ports":     { "dev": 5173 },
+      "domain":    "www.example.com",
+      "remote": {
+        "path": "/home/testuser/stack/viteapp"
+      }
+    },
+
+    "nextapp": {
+      "label":     "Fixture Next App",
+      "kind":      "nextjs",
+      "localRoot": "C:\\fixtures\\nextapp",
+      "ports":     { "dev": 4173, "prod": 3000 },
+      "remote": {
+        "path": "/home/testuser/stack/nextapp"
+      }
+    },
+
+    "edgeproxy": {
+      "label":          "Fixture Edge",
+      "kind":           "edge",
+      "localRoot":      "C:\\fixtures\\edge",
+      "proxyContainer": "edge_proxy",
+      "remote": {
+        "path": "/home/testuser/stack/edge"
+      }
+    },
+
+    "dockeronly": {
+      "label":     "Fixture Docker Stack",
+      "kind":      "docker",
+      "localRoot": "C:\\fixtures\\dockeronly",
+      "remote": {
+        "path": "/home/testuser/stack/dockeronly"
+      }
+    },
+
+    "noports": {
+      "label":     "Fixture No Dev Port",
+      "kind":      "python",
+      "localRoot": "C:\\fixtures\\noports",
+      "remote": {
+        "path": "/home/testuser/stack/noports"
+      }
+    }
+  }
+}

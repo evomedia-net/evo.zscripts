@@ -22,6 +22,15 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **Test suite (Pester)** — the toolkit now has automated coverage of its own
+  pure logic: `Get-ArchiveExcludes` (including the deploy-vs-backup rule that
+  keeps `.env`/`uploads` out of deploys but *in* backups), config and project
+  lookups, `remote.composeDir` fallback, EC2 target composition, and build-label
+  formatting. Run with `Invoke-Pester .\tests` (Pester 5+). Verified by mutation
+  testing — reintroducing each historical bug turns the suite red.
+- **`ZCONFIG` environment variable (PowerShell)** — overrides the path to
+  `zconfig.json`, matching the bash port, which has always honored it. Closes a
+  parity gap and gives the test suite a seam for injecting a fixture config.
 - **`zec2_rotatekeys` — safely rotate/reset server-side secrets** — a new
   tool for when a secret leaks or a deploy overwrites a production `.env`
   with dev values. `-Rotate KEY` regenerates a key **on the server**
