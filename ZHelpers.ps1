@@ -33,9 +33,24 @@ $script:JunkDirNames = @(
 
 $script:ZConfigCache = $null
 
+# Where zconfig.json lives. Defaults to next to the scripts; override with the
+# ZCONFIG environment variable, matching the bash port (zhelpers.sh does the
+# same). Useful for pointing a run at an alternate config, and it is the seam
+# the test suite uses to inject a fixture.
+function Get-ZConfigPath {
+    if ($env:ZCONFIG) { return $env:ZCONFIG }
+    return (Join-Path $PSScriptRoot "zconfig.json")
+}
+
+# Drop the memoised config so the next Get-ZConfig re-reads from disk. Only
+# needed when the config changes mid-process (tests switching fixtures).
+function Reset-ZConfigCache {
+    $script:ZConfigCache = $null
+}
+
 function Get-ZConfig {
     if ($null -ne $script:ZConfigCache) { return $script:ZConfigCache }
-    $configPath = Join-Path $PSScriptRoot "zconfig.json"
+    $configPath = Get-ZConfigPath
     if (-not (Test-Path -LiteralPath $configPath)) {
         Write-Host "ERROR: zconfig.json not found at $configPath" -ForegroundColor Red
         Write-Host "       Copy zconfig.example.json to zconfig.json and fill in your values." -ForegroundColor DarkGray

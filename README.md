@@ -49,6 +49,8 @@ notepad zconfig.json
 
 The example config ships with sample projects named by their kind — `pyapp`, `viteapp`, `nextapp`, `edge`, `analytics`. **Rename the keys to your own project names**; the key is what you type as the command argument. Add as many projects as you like — no script edits ever needed.
 
+Set the `ZCONFIG` environment variable to point at a config somewhere else (both the PowerShell scripts and the bash port honor it) — handy for a second machine profile, or for running against a scratch config without touching your real one.
+
 ### Config reference
 
 ```jsonc
@@ -381,6 +383,18 @@ Give the project a `verify` block instead, and `zdeploy` checks the app **from t
 1. Add a key under `projects` in `zconfig.json` — copy the sample of the matching `kind` and rename it.
 2. That's it: `zstart`, `zkill`, `zrestart`, `zbackup`, `zdeploy`, `zec2`, `zec2online`, `zrepair`, `zstop` all accept the new key immediately.
 3. A project whose deploy doesn't fit the python/vite/nextjs/edge/docker patterns needs its own `Invoke-<Kind>Deploy` function in `zdeploy.ps1` — copy an existing handler; they're all variations on zip → upload → compose up → verify.
+
+## Tests
+
+The toolkit has its own [Pester](https://pester.dev) suite covering the pure logic — the exclude lists, config lookups, and version-label formatting that the deploy and backup paths depend on:
+
+```powershell
+Invoke-Pester .\tests
+```
+
+Needs Pester 5+ (`Install-Module Pester -Scope CurrentUser`); Windows ships 3.x, which won't run these. The suite injects a fixture config through `ZCONFIG`, so it never reads your real `zconfig.json` and runs fine on a machine that has never been configured.
+
+The high-value case is the deploy-vs-backup split: **deploys must exclude `.env` files and `uploads/`, backups must keep them.** Get that backwards in either direction and you either ship secrets to production or quietly write backups that can't restore — neither fails loudly at runtime.
 
 ## Troubleshooting
 
