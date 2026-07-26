@@ -28,9 +28,9 @@ Notable changes to the Evomedia.net Token Savers.
   lookups, `remote.composeDir` fallback, EC2 target composition, and build-label
   formatting. Run with `Invoke-Pester .\tests` (Pester 5+). Verified by mutation
   testing — reintroducing each historical bug turns the suite red.
-- **`ZCONFIG` environment variable (PowerShell)** — overrides the path to
-  `zconfig.json`, matching the bash port, which has always honored it. Closes a
-  parity gap and gives the test suite a seam for injecting a fixture config.
+- **`ZCONFIG` environment variable** — overrides the path to `zconfig.json`, so
+  a run can target an alternate config. Also gives the test suite a seam for
+  injecting a fixture.
 - **`zec2_rotatekeys` — safely rotate/reset server-side secrets** — a new
   tool for when a secret leaks or a deploy overwrites a production `.env`
   with dev values. `-Rotate KEY` regenerates a key **on the server**
@@ -46,8 +46,7 @@ Notable changes to the Evomedia.net Token Savers.
 - **`zkill all`** — `zkill` now accepts `all`, stopping the dev server of
   every project that has a `ports.dev` (edge/docker stacks with no local dev
   server are skipped). Brings it in line with `zdeploy all` / `zbackup all`;
-  the one-shot "stop everything I've got running locally". Ported to both the
-  PowerShell and bash versions.
+  the one-shot "stop everything I've got running locally".
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
   `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the

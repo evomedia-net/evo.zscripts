@@ -14,8 +14,6 @@ Every command is a tiny PowerShell script driven by a single JSON config file. T
 
 **Requirements:** Windows, PowerShell 5.1+, OpenSSH client (`ssh`/`scp`, ships with Windows 10/11), and Docker + docker compose on the remote host for the deploy scripts.
 
-**Linux / macOS / WSL:** a native bash port of every command lives in [`bash/`](bash/README.md) — same config schema, same commands, no PowerShell needed.
-
 ---
 
 ## Install
@@ -49,7 +47,7 @@ notepad zconfig.json
 
 The example config ships with sample projects named by their kind — `pyapp`, `viteapp`, `nextapp`, `edge`, `analytics`. **Rename the keys to your own project names**; the key is what you type as the command argument. Add as many projects as you like — no script edits ever needed.
 
-Set the `ZCONFIG` environment variable to point at a config somewhere else (both the PowerShell scripts and the bash port honor it) — handy for a second machine profile, or for running against a scratch config without touching your real one.
+Set the `ZCONFIG` environment variable to point at a config somewhere else — handy for a second machine profile, or for running against a scratch config without touching your real one.
 
 ### Config reference
 

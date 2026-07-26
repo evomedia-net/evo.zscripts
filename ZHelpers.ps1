@@ -34,9 +34,8 @@ $script:JunkDirNames = @(
 $script:ZConfigCache = $null
 
 # Where zconfig.json lives. Defaults to next to the scripts; override with the
-# ZCONFIG environment variable, matching the bash port (zhelpers.sh does the
-# same). Useful for pointing a run at an alternate config, and it is the seam
-# the test suite uses to inject a fixture.
+# ZCONFIG environment variable. Useful for pointing a run at an alternate
+# config, and it is the seam the test suite uses to inject a fixture.
 function Get-ZConfigPath {
     if ($env:ZCONFIG) { return $env:ZCONFIG }
     return (Join-Path $PSScriptRoot "zconfig.json")
