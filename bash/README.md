@@ -35,6 +35,7 @@ command argument:
 
 | Command | What it does |
 |---|---|
+| `zsetup <p>` | create the project's python venv + install deps (or `npm install`) |
 | `zstart <p> [--detached]` | start local dev server (python/vite/nextjs) |
 | `zkill <p>` | free the project's dev port |
 | `zrestart <p> [--detached]` | kill + start in one command |
