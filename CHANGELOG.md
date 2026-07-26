@@ -49,6 +49,16 @@ Notable changes to the Evomedia.net Token Savers.
   grew up on per-project switches.
 
 ### Changed
+- **`zbackup` / `zbackup_and_sync` require an explicit target** — running
+  them bare now shows usage instead of quietly backing up every project;
+  `all` does what bare invocation used to (matching `zdeploy`). The
+  scheduled task created by `setup_backup_schedule.ps1` passes `all` —
+  re-run it if your task was registered before this change.
+- **`zbackup` parses more `DATABASE_URL` styles** — double/single-quoted
+  values (Prisma convention), `postgres://` and `postgresql+driver://`
+  schemes, and URLs without an explicit port (defaults to 5432) all work;
+  previously these skipped the Postgres dump with "Could not parse
+  DATABASE_URL".
 - **`zkill` / port cleanup kills the whole process tree** — listeners on a
   project's port are now terminated children-first. Auto-reloading servers
   (uvicorn/watchfiles, nodemon) spawn workers that inherit the listening
