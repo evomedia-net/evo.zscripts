@@ -72,6 +72,7 @@ The example config ships with sample projects named by their kind — `pyapp`, `
       "kind":        "python",                        // python | vite | nextjs | edge | docker
       "localRoot":   "C:\\dev\\myapp",                // project folder on this machine
       "startModule": "myapp.main",                    // python kind: runs "python -m myapp.main"
+   // "startApp":    "app.main:app",                  //   ...or, for ASGI/FastAPI: uvicorn app.main:app --port <dev> --reload
       "ports":       { "dev": 8080, "prod": 3000 },   // local dev port / direct server port
       "domain":      "www.myapp.com",                 // public domain (health checks + verification)
       "start": {                                      // optional zstart pre-steps
@@ -135,7 +136,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 zstart <project> [<project> ...] [-Port N] [-BindHost <host>] [-Detached]
 ```
 
-Starts each project's dev server using the handler for its `kind`: **python** runs `python -m <startModule>` (preferring the project's `.venv`), **vite** runs `npm run dev -- --host --port`, **nextjs** runs `npm run dev` with `PORT` set. Runs `npm install` automatically if `node_modules` is missing. A project's optional `start` config block runs first — `gitPull` fast-forwards the checkout and `env` sets process environment variables. Two more opt-in conveniences: if the project has a `motd/` folder of `.txt` files, one is shown (rotating) at startup; if it has `scripts/build_version_tool.py`, the build number is bumped on each start.
+Starts each project's dev server using the handler for its `kind`: **python** runs `python -m <startModule>` — or, for an ASGI/FastAPI app, `uvicorn <startApp>` (e.g. `app.main:app`) with the dev port and `--reload` — preferring the project's `.venv`; **vite** runs `npm run dev -- --host --port`, **nextjs** runs `npm run dev` with `PORT` set. Runs `npm install` automatically if `node_modules` is missing. A project's optional `start` config block runs first — `gitPull` fast-forwards the checkout and `env` sets process environment variables. Two more opt-in conveniences: if the project has a `motd/` folder of `.txt` files, one is shown (rotating) at startup; if it has `scripts/build_version_tool.py`, the build number is bumped on each start.
 
 ```powershell
 zstart viteapp                     # dev server on its configured port
