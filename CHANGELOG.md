@@ -22,6 +22,17 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **Versioned releases: `zversion`, `zrelease`, `releases/`** — the toolkit now
+  carries one version in the SmartPlant 5-segment scheme,
+  `v{major}.{rc}.{beta}.{alpha}.{build}`. `zversion bump` (one per PR / defect
+  fix) and `zversion bump-stage release|rc|beta|alpha` (zeroes every lower
+  segment) rewrite `build-version.json`, stamp `# Version:` into every script
+  header — so a lone copied script still says which release it came from — and
+  regenerate `CHECKSUMS.txt` in the same step. `zrelease` packages the current
+  version as `releases/zscripts-<version>.zip` with a `.sha256` beside it: one
+  hash verifies the download, the bundled `CHECKSUMS.txt` verifies the
+  extracted contents, so nobody needs to clone the repo to get a verifiable
+  copy. Released zips are immutable — `zrelease` refuses to overwrite one.
 - **`zchecksums` + `CHECKSUMS.txt`** — a SHA-256 manifest covering every `.ps1`
   and `.cmd`, so a download can be verified before anything is run. `zchecksums`
   checks them; `zchecksums -Update` regenerates after an intentional edit. The

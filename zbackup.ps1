@@ -1,6 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
+# Version: v1.0.0.0.0
 
 # zbackup.ps1 — local backups: zip project sources (plus a Postgres dump when the
 # project's .env has a DATABASE_URL) into the backups folder.

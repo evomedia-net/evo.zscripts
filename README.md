@@ -132,6 +132,8 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zsync [<key>]` | Copy new backups offsite (or build + mirror a vite dist) |
 | `zstart_docker` | Run a local docker compose stack from `scriptsRoot\docker\` |
 | `zchecksums [-Update]` | Verify every script against `CHECKSUMS.txt` (SHA-256) |
+| `zversion [bump \| bump-stage <s> \| set <v>]` | Show or advance the toolkit version (stamps every header) |
+| `zrelease [-Verify]` | Package the current version as `releases/zscripts-<version>.zip` + `.sha256` |
 
 ### Local development
 
@@ -385,6 +387,18 @@ Give the project a `verify` block instead, and `zdeploy` checks the app **from t
 1. Add a key under `projects` in `zconfig.json` — copy the sample of the matching `kind` and rename it.
 2. That's it: `zstart`, `zkill`, `zrestart`, `zbackup`, `zdeploy`, `zec2`, `zec2online`, `zrepair`, `zstop` all accept the new key immediately.
 3. A project whose deploy doesn't fit the python/vite/nextjs/edge/docker patterns needs its own `Invoke-<Kind>Deploy` function in `zdeploy.ps1` — copy an existing handler; they're all variations on zip → upload → compose up → verify.
+
+## Downloading without cloning
+
+Each release is packaged as a zip in [`releases/`](releases/) — grab the latest `zscripts-v*.zip`, check it, unzip, done:
+
+```bash
+sha256sum -c zscripts-v1.0.0.0.0.zip.sha256   # verify the download
+unzip zscripts-v1.0.0.0.0.zip -d zscripts     # extract
+cd zscripts && sha256sum -c CHECKSUMS.txt     # verify the contents
+```
+
+The zip contains every command, `CHECKSUMS.txt`, `zconfig.example.json`, and the docs. Versions follow `v{major}.{rc}.{beta}.{alpha}.{build}`; every script header carries the release version it shipped in, so even a single copied file can be traced to its release.
 
 ## Verifying what you downloaded
 

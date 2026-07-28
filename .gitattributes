@@ -7,3 +7,7 @@
 # The checksum manifest must stay LF: `sha256sum -c` treats a trailing CR as
 # part of the filename and reports every entry as missing.
 CHECKSUMS.txt text eol=lf
+releases/*.sha256 text eol=lf
+
+# Release zips are binary and immutable.
+releases/*.zip binary
