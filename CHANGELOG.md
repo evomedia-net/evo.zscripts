@@ -22,6 +22,27 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **Versioned releases: `zversion`, `zrelease`, `releases/`** — the toolkit now
+  carries one version in the SmartPlant 5-segment scheme,
+  `v{major}.{rc}.{beta}.{alpha}.{build}`. `zversion bump` (one per PR / defect
+  fix) and `zversion bump-stage release|rc|beta|alpha` (zeroes every lower
+  segment) rewrite `build-version.json`, stamp `# Version:` into every script
+  header — so a lone copied script still says which release it came from — and
+  regenerate `CHECKSUMS.txt` in the same step. `zrelease` packages the current
+  version as `releases/zscripts-<version>.zip` with a `.sha256` beside it: one
+  hash verifies the download, the bundled `CHECKSUMS.txt` verifies the
+  extracted contents, so nobody needs to clone the repo to get a verifiable
+  copy. Released zips are immutable — `zrelease` refuses to overwrite one.
+- **`zchecksums` + `CHECKSUMS.txt`** — a SHA-256 manifest covering every `.ps1`
+  and `.cmd`, so a download can be verified before anything is run. `zchecksums`
+  checks them; `zchecksums -Update` regenerates after an intentional edit. The
+  manifest is `sha256sum` format, so `sha256sum -c CHECKSUMS.txt` works on
+  Linux/macOS/WSL too, and the hashes match on every platform because
+  `.gitattributes` pins these files to CRLF everywhere. Flags changed files,
+  missing files, **and scripts present on disk but absent from the manifest**.
+  It's an integrity check, not a signature — the manifest sits in the same repo
+  as the code, so it catches corruption and accidental drift, not a compromised
+  repo. A Pester test fails if the manifest ever goes stale.
 - **Test suite (Pester)** — the toolkit now has automated coverage of its own
   pure logic: `Get-ArchiveExcludes` (including the deploy-vs-backup rule that
   keeps `.env`/`uploads` out of deploys but *in* backups), config and project

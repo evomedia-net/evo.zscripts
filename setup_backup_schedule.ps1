@@ -1,6 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
+# Version: v1.0.0.0.0
 
 # setup_backup_schedule.ps1 — create a scheduled task for daily backups + OneDrive sync
 #

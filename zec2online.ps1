@@ -1,6 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
+# Version: v1.0.0.0.0
 
 # zec2online.ps1 — deep health check: verify apps are live AND running the expected
 # build; auto-start downed stacks via docker compose and stream diagnostics.

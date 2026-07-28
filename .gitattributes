@@ -1,3 +1,13 @@
-# PowerShell/cmd are happiest with CRLF on Windows.
+# PowerShell/cmd are happiest with CRLF on Windows. The pin matters beyond
+# convenience: it makes these files byte-identical on every platform, which is
+# what lets CHECKSUMS.txt hold one hash per file rather than one per OS.
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
+
+# The checksum manifest must stay LF: `sha256sum -c` treats a trailing CR as
+# part of the filename and reports every entry as missing.
+CHECKSUMS.txt text eol=lf
+releases/*.sha256 text eol=lf
+
+# Release zips are binary and immutable.
+releases/*.zip binary

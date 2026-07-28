@@ -4,4 +4,4 @@ REM Licensed under the MIT License. See LICENSE.
 REM Version: v1.0.0.0.0
 
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ZStart.ps1" -Detached %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0zchecksums.ps1" %*
