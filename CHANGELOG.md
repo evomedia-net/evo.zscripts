@@ -22,6 +22,16 @@ Notable changes to the Evomedia.net Token Savers.
   credentials and RSA signing keys.
 
 ### Added
+- **`zchecksums` + `CHECKSUMS.txt`** — a SHA-256 manifest covering every `.ps1`
+  and `.cmd`, so a download can be verified before anything is run. `zchecksums`
+  checks them; `zchecksums -Update` regenerates after an intentional edit. The
+  manifest is `sha256sum` format, so `sha256sum -c CHECKSUMS.txt` works on
+  Linux/macOS/WSL too, and the hashes match on every platform because
+  `.gitattributes` pins these files to CRLF everywhere. Flags changed files,
+  missing files, **and scripts present on disk but absent from the manifest**.
+  It's an integrity check, not a signature — the manifest sits in the same repo
+  as the code, so it catches corruption and accidental drift, not a compromised
+  repo. A Pester test fails if the manifest ever goes stale.
 - **Test suite (Pester)** — the toolkit now has automated coverage of its own
   pure logic: `Get-ArchiveExcludes` (including the deploy-vs-backup rule that
   keeps `.env`/`uploads` out of deploys but *in* backups), config and project

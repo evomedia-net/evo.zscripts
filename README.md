@@ -131,6 +131,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zbackup_ec2 [<key> ...]` | Pull DB dumps + server-side data files down from the server |
 | `zsync [<key>]` | Copy new backups offsite (or build + mirror a vite dist) |
 | `zstart_docker` | Run a local docker compose stack from `scriptsRoot\docker\` |
+| `zchecksums [-Update]` | Verify every script against `CHECKSUMS.txt` (SHA-256) |
 
 ### Local development
 
@@ -384,6 +385,32 @@ Give the project a `verify` block instead, and `zdeploy` checks the app **from t
 1. Add a key under `projects` in `zconfig.json` — copy the sample of the matching `kind` and rename it.
 2. That's it: `zstart`, `zkill`, `zrestart`, `zbackup`, `zdeploy`, `zec2`, `zec2online`, `zrepair`, `zstop` all accept the new key immediately.
 3. A project whose deploy doesn't fit the python/vite/nextjs/edge/docker patterns needs its own `Invoke-<Kind>Deploy` function in `zdeploy.ps1` — copy an existing handler; they're all variations on zip → upload → compose up → verify.
+
+## Verifying what you downloaded
+
+`CHECKSUMS.txt` holds a SHA-256 for every `.ps1` and `.cmd` in the repo. Check them before running anything:
+
+```powershell
+zchecksums
+```
+
+Or with the standard tool on Linux/macOS/WSL — the manifest is `sha256sum` format:
+
+```bash
+sha256sum -c CHECKSUMS.txt
+```
+
+The hashes are identical on every platform: `.gitattributes` pins `.ps1`/`.cmd` to CRLF everywhere, so a file is byte-for-byte the same whether you cloned on Windows or Linux.
+
+`zchecksums` flags three things — a file whose contents changed, a listed file that's gone, and a script on disk that **isn't** in the manifest (so something added quietly still gets noticed). It exits non-zero on any of them.
+
+If you edit a script yourself, regenerate and commit the manifest with it:
+
+```powershell
+zchecksums -Update
+```
+
+**What this does and doesn't prove.** `CHECKSUMS.txt` lives in the same repo as the scripts, so anyone who could alter a script could alter the manifest too. It's an integrity check, not a signature: it reliably catches a truncated clone, a local edit you forgot about, or a file added outside a commit. It does *not* prove the code came from this project — for that you'd need a signature or a hash published outside this repo.
 
 ## Tests
 
