@@ -648,4 +648,4 @@ Stop-ZTracking
 # can see how long ago this deployed. Only reached on success - a failed deploy
 # throws out of the loop above, so this never claims a deploy that didn't happen.
 Write-Host ""
-Write-Host ("Last deployed at {0}" -f (Get-Date -Format "MM/dd/yyyy HH:mm:ss")) -ForegroundColor Cyan
+Write-Host ("Last deployed at {0}" -f (Get-Date -Format "MM/dd/yyyy hh:mm:ss tt")) -ForegroundColor Cyan
