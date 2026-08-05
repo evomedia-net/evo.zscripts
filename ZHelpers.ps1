@@ -185,6 +185,12 @@ function Read-JsonBuildVersion {
 function Get-LabelFromBuildJsonObj {
     param($obj)
     if (-not $obj) { return $null }
+    # Five-segment scheme: v{major}.{rc}.{beta}.{alpha}.{build}
+    if ($null -ne $obj.build -or $null -ne $obj.alpha) {
+        $alpha = if ($null -ne $obj.alpha) { [int]$obj.alpha } else { 1 }
+        return "v$([int]$obj.major).$([int]$obj.rc).$([int]$obj.beta).$alpha.$([int]$obj.build)"
+    }
+    # Legacy two-part stamp (projects not yet migrated): v{productVersion}.{buildNumber}
     return "v$([string]$obj.productVersion).$([int]$obj.buildNumber)"
 }
 

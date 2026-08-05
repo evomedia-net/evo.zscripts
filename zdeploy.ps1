@@ -178,9 +178,12 @@ function Wait-VerifyStaticBuild {
         Write-Host "`n--- [$Key version] SKIPPED (no local build-version.json - see 'Enabling deploy verification' in README) ---" -ForegroundColor DarkYellow
         return
     }
-    $expBn = [int]$PreZipBuildState.buildNumber + 1
-    $pv    = [string]$PreZipBuildState.productVersion
-    $expectedLabel = "v$pv.$expBn"
+    # Expect the COMMITTED stamp, not +1: builds no longer self-bump (a
+    # prebuild hook incremented inside the image, so the served version
+    # matched no commit and every build dirtied the tree). The counter now
+    # advances deliberately — one version bump per merged PR — so "is the
+    # build I just packed live?" means an exact match.
+    $expectedLabel = Get-LabelFromBuildJsonObj $PreZipBuildState
     Write-Host "`n--- [$Key] Live build verification (expect $expectedLabel) ---" -ForegroundColor Cyan
     $containerName = $Proj.remote.containerName
     $deadline = (Get-Date).AddSeconds(45)
@@ -536,8 +539,8 @@ function Invoke-NextDeploy {
             }
         }
         if ($preZipBuild) {
-            $expBn = [int]$preZipBuild.buildNumber + 1
-            $expectedLabel = "v$([string]$preZipBuild.productVersion).$expBn"
+            # Committed stamp, not +1 — see the note in Wait-VerifyStaticBuild.
+            $expectedLabel = Get-LabelFromBuildJsonObj $preZipBuild
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $expectedLabel -TimeoutSec 60 | Out-Null
         } else {
             Write-Host "  (No public/build-version.json - version verification skipped. See 'Enabling deploy verification' in README.)" -ForegroundColor DarkYellow
