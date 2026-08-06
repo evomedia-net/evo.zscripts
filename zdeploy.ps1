@@ -277,6 +277,28 @@ function Test-DeployHealth {
     return $false
 }
 
+# Where the thing just deployed can be reached. A project published through the
+# edge proxy has a domain; one that is not still has somewhere to point at, and
+# saying nothing is the least useful option — an internal service is exactly the
+# case where "where did that land?" is hardest to answer from memory. Falls back
+# through what the project actually declares, and prints nothing if it declares
+# none of it.
+function Write-DeployLocation {
+    param($Proj, [int]$Pad = 0)
+    $label = "Site:".PadRight([Math]::Max(5, $Pad))
+    if ($Proj.domain) {
+        Write-Host "$label https://$($Proj.domain)" -ForegroundColor Yellow
+        return
+    }
+    # No public route: give the server-local endpoint the deploy just verified.
+    $port = if ($Proj.verify -and $Proj.verify.port) { [int]$Proj.verify.port }
+            elseif ($Proj.ports -and $Proj.ports.prod) { [int]$Proj.ports.prod }
+            else { 0 }
+    if ($port -le 0) { return }
+    $path = if ($Proj.verify -and $Proj.verify.path) { [string]$Proj.verify.path } else { "" }
+    Write-Host "$label http://127.0.0.1:$port$path  (on the server; no public domain)" -ForegroundColor Yellow
+}
+
 # ── Kind handlers ────────────────────────────────────────────────────────────
 
 function Invoke-PythonDeploy {
@@ -382,7 +404,7 @@ function Invoke-PythonDeploy {
         $Elapsed    = (Get-Date) - $DeployStart
         $ElapsedStr = "{0:mm\:ss}" -f $Elapsed
         Write-Host "`n--- [Done] $($Proj.label) deployed! ---" -ForegroundColor Green
-        if ($Proj.domain) { Write-Host "Site: https://$($Proj.domain)" -ForegroundColor Yellow }
+        Write-DeployLocation -Proj $Proj
         if ($BuildVersion) { Write-Host "Build Version: $BuildVersion" -ForegroundColor Magenta }
         Write-Host "Change Note: $ChangeNote" -ForegroundColor Cyan
         Write-Host "Deploy Time: $ElapsedStr ($([math]::Round($Elapsed.TotalSeconds))s)" -ForegroundColor DarkGray
@@ -449,7 +471,7 @@ function Invoke-ViteDeploy {
         $Elapsed    = (Get-Date) - $DeployStart
         $ElapsedStr = "{0:mm\:ss}" -f $Elapsed
         Write-Host "`n--- [Done] $($Proj.label) deployed! ---" -ForegroundColor Green
-        if ($Proj.domain) { Write-Host "Site: https://$($Proj.domain)" -ForegroundColor Yellow }
+        Write-DeployLocation -Proj $Proj
         Write-Host "Change Note: $ChangeNote" -ForegroundColor Cyan
         Write-Host "Deploy Time: $ElapsedStr ($([math]::Round($Elapsed.TotalSeconds))s)" -ForegroundColor DarkGray
     }
@@ -551,7 +573,7 @@ function Invoke-NextDeploy {
         $Elapsed    = (Get-Date) - $DeployStart
         $ElapsedStr = "{0:mm\:ss}" -f $Elapsed
         Write-Host "`n--- [Done] $($Proj.label) deployed! ---" -ForegroundColor Green
-        if ($Proj.domain) { Write-Host "Site:        https://$($Proj.domain)" -ForegroundColor Yellow }
+        Write-DeployLocation -Proj $Proj -Pad 12
         Write-Host "Change Note: $ChangeNote" -ForegroundColor Cyan
         Write-Host "Deploy Time: $ElapsedStr ($([math]::Round($Elapsed.TotalSeconds))s)" -ForegroundColor DarkGray
     }
@@ -628,7 +650,7 @@ function Invoke-DockerDeploy {
 
     Invoke-Ec2PostDeployCleanup -Label $Key
     Write-Host "`n--- [Done] $($Proj.label) deploy finished ---" -ForegroundColor Green
-    if ($Proj.domain) { Write-Host "Site: https://$($Proj.domain)" -ForegroundColor Yellow }
+    Write-DeployLocation -Proj $Proj
 }
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────
