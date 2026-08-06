@@ -25,12 +25,15 @@
 #   python kind: app service "app", db service "db"
 #   nextjs kind: app service "web", db service "db"
 #
-# Verification (python kind, when there is no scripts/build_version_tool.py):
+# Verification (python kind when there is no scripts/build_version_tool.py, and
+# nextjs kind):
 #   Projects with a "verify" block are checked ON the server via
 #   localhost:<port><path> — the only accurate way for stacks that are not
 #   published through the edge proxy. Projects with only a "domain" fall back
 #   to a Host-header request. Projects with neither are reported as NOT
 #   verified rather than passing on the proxy's default vhost.
+#   A compose stack usually publishes to 127.0.0.1 only, so probing the public
+#   IP on the app's port can never answer — give those a "verify" block.
 #
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
@@ -260,7 +263,10 @@ function Test-DeployHealth {
     Write-Host "`n--- [$Key] Health check (on server: localhost:$port$path) ---" -ForegroundColor Cyan
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
-        $raw = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "curl -s -m 8 http://localhost:$port$path"
+        # -L: an app whose "/" redirects (e.g. Next.js "/" -> "/login") answers a
+        # 307 whose body is a few bytes or empty, which reads as "not ready".
+        # Follow to the page that actually renders before judging.
+        $raw = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "curl -sL -m 8 http://localhost:$port$path"
         $body = ($raw | Out-String).Trim()
         if ($LASTEXITCODE -eq 0 -and $body) {
             if (-not $expect -or $body.Contains($expect)) {
@@ -539,16 +545,23 @@ function Invoke-NextDeploy {
         Invoke-Ec2Step "record deploy timestamp; remove remote zip" "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $remotePath/.last_deploy_utc > /dev/null && rm -f $RemoteHome/$zipName"
 
         Write-Host "`n--- [5] Verifying deployment ---" -ForegroundColor Cyan
-        if ($Proj.ports -and $Proj.ports.prod) {
-            $directUrl = "http://${EC2_IP}:$([int]$Proj.ports.prod)/"
+        # Same precedence as the python handler. Do NOT probe http://<ec2-ip>:<prod-port>/
+        # here: a compose stack behind the edge proxy usually publishes to
+        # 127.0.0.1 only, so that probe can never answer and the old "is the port
+        # open in the security group?" warning sent you chasing a firewall rule
+        # for an app that was already up.
+        if ($Proj.verify -and $Proj.verify.port) {
+            Test-DeployHealth -Key $Key -Proj $Proj -TimeoutSec 60 | Out-Null
+        } elseif ($Proj.domain) {
+            $headers = @{ 'Host' = $Proj.domain }
             $deadline = (Get-Date).AddSeconds(60)
             $verified = $false
             while ((Get-Date) -lt $deadline) {
                 Start-Sleep -Seconds 4
                 try {
-                    $resp = Invoke-WebRequest -Uri $directUrl -TimeoutSec 8 -ErrorAction Stop -UseBasicParsing
-                    if ($resp.StatusCode -eq 200) {
-                        Write-Host "  PASS - app is responding at $directUrl" -ForegroundColor Green
+                    $resp = Invoke-WebRequest -Uri "http://$EC2_IP/" -Headers $headers -TimeoutSec 8 -ErrorAction Stop -UseBasicParsing
+                    if ($resp.StatusCode -lt 500) {
+                        Write-Host "  PASS - app is responding at https://$($Proj.domain)/" -ForegroundColor Green
                         $verified = $true
                         break
                     }
@@ -557,8 +570,12 @@ function Invoke-NextDeploy {
                 }
             }
             if (-not $verified) {
-                Write-Host "  WARNING: no response at $directUrl within 60s (is the port open in the security group?)." -ForegroundColor Yellow
+                Write-Host "  WARNING: no response for https://$($Proj.domain)/ within 60s." -ForegroundColor Yellow
             }
+        } else {
+            Write-Host "  Deploy finished - NOT verified." -ForegroundColor Yellow
+            Write-Host "  No 'domain' and no 'verify' block in zconfig.json for '$Key'," -ForegroundColor Yellow
+            Write-Host '  Add to the project: "verify": { "port": <hostPort>, "path": "/health" }' -ForegroundColor Gray
         }
         if ($preZipBuild) {
             # Committed stamp, not +1 — see the note in Wait-VerifyStaticBuild.
