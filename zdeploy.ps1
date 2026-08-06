@@ -270,7 +270,11 @@ function Test-DeployHealth {
         $body = ($raw | Out-String).Trim()
         if ($LASTEXITCODE -eq 0 -and $body) {
             if (-not $expect -or $body.Contains($expect)) {
-                Write-Host "  PASS - $body" -ForegroundColor Green
+                # A /health endpoint returns a line of JSON; an app page returns
+                # kilobytes of HTML. Match on the whole body, but only print
+                # enough to recognise it — the rest is unreadable in a log.
+                $shown = if ($body.Length -gt 200) { $body.Substring(0, 200) + "... ($($body.Length) bytes)" } else { $body }
+                Write-Host "  PASS - $shown" -ForegroundColor Green
                 return $true
             }
             Write-Host "  Responding but '$expect' not found - waiting..." -ForegroundColor DarkYellow
