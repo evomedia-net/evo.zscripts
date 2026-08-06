@@ -652,3 +652,6 @@ Stop-ZTracking
 # throws out of the loop above, so this never claims a deploy that didn't happen.
 Write-Host ""
 Write-Host ("Last deployed at {0}" -f (Get-Date -Format "MM/dd/yyyy hh:mm:ss tt")) -ForegroundColor Cyan
+# Two blank lines below, so the timestamp isn't crowded by the next prompt.
+Write-Host ""
+Write-Host ""
