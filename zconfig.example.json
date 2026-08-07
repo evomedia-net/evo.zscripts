@@ -79,6 +79,12 @@
         "path":       "/home/YOUR_SSH_USER/stack/nextapp",
         "appService": "web"
       },
+      "verify": {
+        "_comment": "Optional: after deploy, curl this ON the server (localhost:port+path). Add it when compose publishes the app to 127.0.0.1 only, as it usually does behind the edge proxy — probing the public IP on that port can never answer. Redirects are followed, so a Next.js '/' that 307s to '/login' still verifies. Takes precedence over the domain check.",
+        "port": 3000,
+        "path": "/",
+        "expect": ""
+      },
       "deploy": { "zipName": "NextAppDeploy.zip" }
     },
 
