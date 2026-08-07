@@ -11,6 +11,13 @@ $script:ArchiveExtensions = @(
     '.bz2', '.xz', '.lz', '.lzma', '.cab', '.jar', '.war', '.ear', '.z',
     '.zst', '.zstd'
 )
+# Directories whose archives are BUILD INPUTS, not incidental bloat, and so are
+# exempt from ArchiveExtensions. A project that vendors a dependency as
+# vendor/*.tgz (common when a bundler cannot resolve `file:` links outside the
+# project root) needs that tarball in the deploy zip — dropping it makes a
+# Dockerfile's `COPY vendor ./vendor` fail at image build time, which is a
+# confusing way to discover the archive filter ate a required file.
+$script:ArchiveKeepDirNames = @('vendor')
 $script:ScriptExtensions = @('.ps1', '.cmd', '.bat')
 $script:JunkExtensions = @(
     '.swp', '.swo', '.swn', '.tmp', '.orig', '.rej', '.bak',
@@ -115,6 +122,34 @@ function Get-Ec2Home {
     return "/home/$((Get-ZConfig).ec2.user)"
 }
 
+# Options every deploy-path ssh/scp carries. Splat with @sshOpts.
+#
+# BatchMode=yes is the one that matters. Without it ssh PROMPTS - for a
+# passphrase, a password, a sudo password - and waits forever. The deploy pipes
+# stderr into the pipeline (2>&1 | ForEach-Object) so the prompt is swallowed
+# on its way to the screen: the run simply stops under whatever step label was
+# printed last, with nothing to explain it and no obvious reason why that
+# particular step would be slow. One deploy appeared to hang on "ensure shared
+# web network", a step whose entire body is `docker network create web
+# 2>/dev/null || true` against a network that already existed.
+#
+# There is no prompt here you would ever want to answer - a deploy key is
+# unencrypted and sudo on the box is passwordless - so failing immediately is
+# strictly better than waiting on input that is never coming.
+#
+# ConnectTimeout bounds the TCP connect. ServerAlive* bound everything after
+# it, so a session that dies mid-command (dropped VPN, laptop asleep, host
+# rebooting) errors out in about a minute instead of hanging indefinitely.
+function Get-Ec2SshOpts {
+    return @(
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'BatchMode=yes',
+        '-o', 'ConnectTimeout=15',
+        '-o', 'ServerAliveInterval=15',
+        '-o', 'ServerAliveCountMax=4'
+    )
+}
+
 # Run one bash command on the server; throw on non-zero exit.
 function Invoke-Ec2Step {
     param(
@@ -132,7 +167,8 @@ function Invoke-Ec2Step {
     # to Continue locally (function-scoped, auto-reverts) and flatten stderr
     # into normal output, so only the actual exit status decides success.
     $ErrorActionPreference = 'Continue'
-    ssh -o StrictHostKeyChecking=no -i $cfg.ec2.pemKey (Get-Ec2Target) $Bash 2>&1 |
+    $sshOpts = Get-Ec2SshOpts
+    ssh @sshOpts -i $cfg.ec2.pemKey (Get-Ec2Target) $Bash 2>&1 |
         ForEach-Object { "$_" }
     if ($LASTEXITCODE -ne 0) {
         $msg = "Remote step failed: '$Label' (exit $LASTEXITCODE)."
@@ -227,6 +263,18 @@ function Get-ArchiveExcludes {
 
 # ── Archive builder ──────────────────────────────────────────────────────────
 
+# True when a file sits inside a directory named in $ArchiveKeepDirNames, i.e.
+# its archive extension is a build input and must survive the archive filter.
+function Test-InArchiveKeepDir {
+    param([Parameter(Mandatory)][System.IO.FileInfo] $File)
+    $dir = $File.DirectoryName
+    if (-not $dir) { return $false }
+    foreach ($segment in ($dir -split '[\\/]')) {
+        if ($script:ArchiveKeepDirNames -contains $segment) { return $true }
+    }
+    return $false
+}
+
 # Build a zip from a source directory (deploy/backup).
 # - $TopLevelExclude: skip these entries at the source root
 # - Archive/script/junk filters and $JunkDirNames pruning apply recursively
@@ -313,7 +361,9 @@ function New-ProjectArchive {
     foreach ($f in $allFiles) {
         $ext = $f.Extension
         if ($ext) { $ext = $ext.ToLowerInvariant() }
-        if ($script:ArchiveExtensions -contains $ext) { $archivesSkipped++; continue }
+        if ($script:ArchiveExtensions -contains $ext -and -not (Test-InArchiveKeepDir $f)) {
+            $archivesSkipped++; continue
+        }
         if (-not $IncludeScriptFiles -and $script:ScriptExtensions -contains $ext) { $scriptsSkipped++; continue }
         if ($script:JunkExtensions -contains $ext) { $junkExtSkipped++; continue }
         if ($junkNameSet.Contains($f.Name)) { $junkNameSkipped++; continue }
