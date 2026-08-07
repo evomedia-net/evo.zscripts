@@ -11,6 +11,34 @@ Notable changes to the Evomedia.net Token Savers.
 ## Unreleased
 
 ### Fixed
+- **Deploys can no longer hang forever on an ssh prompt** — every
+  deploy-path `ssh`/`scp` now carries `BatchMode=yes` plus connect and
+  keepalive timeouts (`Get-Ec2SshOpts` in `ZHelpers.ps1`). Without
+  `BatchMode`, ssh prompts for a passphrase or password and waits
+  indefinitely; because the deploy pipes stderr through the pipeline, the
+  prompt never reaches the screen and the run just stops under whatever
+  step label printed last, with no explanation. Now it fails immediately —
+  there is no prompt on this path worth answering. `ServerAlive*` bounds a
+  session that dies mid-command (dropped VPN, sleeping laptop, rebooting
+  host) to about a minute instead of hanging.
+- **Vendored archives survive the archive filter** — files under a
+  `vendor/` directory are exempt from the "no archives in the zip" rule.
+  A project that vendors a dependency as `vendor/*.tgz` needs it in the
+  deploy zip; dropping it makes a Dockerfile's `COPY vendor ./vendor`
+  fail at image build, a confusing way to learn the filter ate a build
+  input.
+- **`unzip` install is idempotent** — the remote step ran
+  `apt-get update && apt-get install -y unzip` on every deploy; it now
+  checks `command -v unzip` first and skips the apt round-trip when the
+  binary is already there.
+- **`zdeploy` edge kind now ships asset subdirectories** (#42) — the edge
+  deploy uploaded top-level files only, so a project self-hosting assets
+  in folders (`fonts/`, `vendor/`) lost them on every deploy: docker
+  created empty root-owned mount points and nginx served 404s from them,
+  which shows up as fonts silently falling back and vendored JS never
+  loading. Every subdirectory except `nginx-logs/` and `.git/` now ships
+  recursively, and the `ensure edge dir` chown is recursive so scp into
+  docker-created root-owned dirs cannot fail.
 - **`zdeploy` no longer deletes operator-managed files on deploy** (#2) —
   the project-directory replacement preserved only `./.env`, silently
   destroying every other server-side file (`.env.db`, staged signing

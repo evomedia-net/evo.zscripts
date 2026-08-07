@@ -211,6 +211,23 @@ Describe "New-ProjectArchive - file filters" {
         $e = Get-ArchivedEntries -Paths @("app.py", "styles.css", "index.html", "data.json")
         foreach ($f in @("app.py", "styles.css", "index.html", "data.json")) { $e | Should -Contain $f }
     }
+
+    It "keeps an archive inside vendor/ - a vendored tarball is a build input" {
+        # Dockerfiles COPY vendor/ wholesale; dropping the tarball there fails
+        # the image build on the server, far from the filter that ate it.
+        $e = Get-ArchivedEntries -Paths @("app.py", "vendor/sdk-1.0.0.tgz")
+        $e | Should -Contain "vendor/sdk-1.0.0.tgz"
+    }
+
+    It "keeps an archive in a nested vendor/ directory" {
+        $e = Get-ArchivedEntries -Paths @("app.py", "packages/api/vendor/sdk.tgz")
+        $e | Should -Contain "packages/api/vendor/sdk.tgz"
+    }
+
+    It "still skips an archive outside vendor/ (the exemption is not global)" {
+        $e = Get-ArchivedEntries -Paths @("app.py", "assets/bundle.tgz")
+        $e | Should -Not -Contain "assets/bundle.tgz"
+    }
 }
 
 Describe "New-ProjectArchive - IncludeScriptFiles" {

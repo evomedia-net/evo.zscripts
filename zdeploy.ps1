@@ -52,6 +52,7 @@ $STACK_ROOT = $cfg.ec2.stackRoot
 $SSH_TARGET = Get-Ec2Target
 $RemoteHome = Get-Ec2Home
 $Ec2User    = $cfg.ec2.user
+$SSH_OPTS   = Get-Ec2SshOpts   # see ZHelpers.ps1 - these are what stop a deploy hanging
 
 $TempRoot = $cfg.paths.temp
 if (-not (Test-Path -LiteralPath $TempRoot)) {
@@ -108,7 +109,7 @@ function Invoke-Ec2PreflightCleanup {
         "echo available_mb=`$avail_mb",
         "if [ `"`$avail_mb`" -lt 1500 ]; then echo 'ERROR: less than 1.5 GB free on /. Grow the root volume or run: sudo docker system prune -af' >&2; exit 11; fi"
     ) -join '; '
-    ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET $preflightCmd
+    ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $preflightCmd
     if ($LASTEXITCODE -ne 0) {
         throw "Server pre-flight cleanup failed (exit $LASTEXITCODE). Root volume too full (need ~1.5 GB free, ideally 3+)."
     }
@@ -126,7 +127,7 @@ function Invoke-Ec2PostDeployCleanup {
         "sudo find /var/lib/docker/containers/ -name '*-json.log' -size +50M -exec truncate -s 0 {} + 2>/dev/null || true",
         "df -h /"
     ) -join '; '
-    ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET $cmd
+    ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $cmd
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  Post-deploy cleanup returned non-zero exit ($LASTEXITCODE); continuing." -ForegroundColor DarkYellow
     }
@@ -134,7 +135,7 @@ function Invoke-Ec2PostDeployCleanup {
 
 function Send-DeployZip {
     param([string]$LocalZip, [string]$ZipName)
-    scp -i $PEM_KEY $LocalZip "${SSH_TARGET}:$RemoteHome/"
+    scp @SSH_OPTS -i $PEM_KEY $LocalZip "${SSH_TARGET}:$RemoteHome/"
     if ($LASTEXITCODE -ne 0) {
         throw "SCP upload failed (exit $LASTEXITCODE). Likely server disk space. Try: rm -f $RemoteHome/$ZipName"
     }
@@ -196,7 +197,7 @@ function Wait-VerifyStaticBuild {
             if ($containerName) {
                 # build-version.json may be blocked from external requests by the edge
                 # proxy; read it inside the running container instead.
-                $raw = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET `
+                $raw = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET `
                     "sudo docker exec $containerName cat /usr/share/nginx/html/build-version.json 2>/dev/null"
                 if ($raw) { $r = $raw | ConvertFrom-Json -ErrorAction Stop }
             } else {
@@ -266,7 +267,7 @@ function Test-DeployHealth {
         # -L: an app whose "/" redirects (e.g. Next.js "/" -> "/login") answers a
         # 307 whose body is a few bytes or empty, which reads as "not ready".
         # Follow to the page that actually renders before judging.
-        $raw = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "curl -sL -m 8 http://localhost:$port$path"
+        $raw = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "curl -sL -m 8 http://localhost:$port$path"
         $body = ($raw | Out-String).Trim()
         if ($LASTEXITCODE -eq 0 -and $body) {
             if (-not $expect -or $body.Contains($expect)) {
@@ -344,7 +345,7 @@ function Invoke-PythonDeploy {
         Send-DeployZip -LocalZip $zipLocal -ZipName $zipName
 
         Write-Host "`n--- [3] Unzipping and rebuilding on the server ---" -ForegroundColor Cyan
-        Invoke-Ec2Step "apt-get install unzip" "sudo apt-get update -qq && sudo apt-get install -y unzip"
+        Invoke-Ec2Step "ensure unzip installed" "command -v unzip >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y unzip; }"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
         Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
@@ -360,7 +361,7 @@ function Invoke-PythonDeploy {
             Write-Host "`n--- [4] Incrementing build version ---" -ForegroundColor Cyan
             $BumpCmd = "cd $composeDir && sudo docker compose exec -T $appSvc python scripts/build_version_tool.py bump"
             for ($attempt = 1; $attempt -le 5; $attempt++) {
-                $output = ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET $BumpCmd
+                $output = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $BumpCmd
                 if ($LASTEXITCODE -eq 0 -and $output) {
                     $BuildVersion = ($output | Select-Object -Last 1).ToString().Trim()
                     break
@@ -371,7 +372,7 @@ function Invoke-PythonDeploy {
             if (-not $BuildVersion) { throw "Build version bump failed after 5 attempts" }
 
             python $versionTool set $BuildVersion | Out-Null
-            ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "echo '$BuildVersion' | sudo tee $remotePath/.build_version > /dev/null"
+            ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "echo '$BuildVersion' | sudo tee $remotePath/.build_version > /dev/null"
             $changelogTool = Join-Path $root "scripts\build_changelog_tool.py"
             if (Test-Path -LiteralPath $changelogTool) {
                 if ([string]::IsNullOrWhiteSpace($ChangeNote)) { $ChangeNote = "Build deployed" }
@@ -379,7 +380,7 @@ function Invoke-PythonDeploy {
             }
 
             Write-Host "`n--- [5] Restarting app to pick up new version ---" -ForegroundColor Cyan
-            ssh -o StrictHostKeyChecking=no -i $PEM_KEY $SSH_TARGET "cd $composeDir && sudo COMPOSE_BAKE=false docker compose restart $appSvc"
+            ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "cd $composeDir && sudo COMPOSE_BAKE=false docker compose restart $appSvc"
             if ($LASTEXITCODE -ne 0) { throw "App restart after build bump failed (exit $LASTEXITCODE)" }
 
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $BuildVersion -TimeoutSec 30 | Out-Null
@@ -458,7 +459,7 @@ function Invoke-ViteDeploy {
         Send-DeployZip -LocalZip $zipLocal -ZipName $zipName
 
         Write-Host "`n--- [3] Unzipping and rebuilding on the server ---" -ForegroundColor Cyan
-        Invoke-Ec2Step "apt-get install unzip" "sudo apt-get update -qq && sudo apt-get install -y unzip"
+        Invoke-Ec2Step "ensure unzip installed" "command -v unzip >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y unzip; }"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
         Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
@@ -526,7 +527,7 @@ function Invoke-NextDeploy {
         Send-DeployZip -LocalZip $zipLocal -ZipName $zipName
 
         Write-Host "`n--- [3] Unzipping and rebuilding on the server ---" -ForegroundColor Cyan
-        Invoke-Ec2Step "ensure unzip installed" "sudo apt-get update -qq && sudo apt-get install -y unzip"
+        Invoke-Ec2Step "ensure unzip installed" "command -v unzip >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y unzip; }"
         Invoke-Ec2Step "ensure stack root" "sudo mkdir -p $STACK_ROOT && sudo chown ${Ec2User}:${Ec2User} $STACK_ROOT"
         Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
         Save-OperatorFiles -Key $Key -Proj $Proj -RemotePath $remotePath
@@ -620,15 +621,30 @@ function Invoke-EdgeDeploy {
     }
 
     Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
-    Invoke-Ec2Step "ensure edge dir" "sudo mkdir -p $remotePath && sudo chown ${Ec2User}:${Ec2User} $remotePath"
+    # -R: docker creates mount-point subdirs (vendor/, fonts/) root-owned when
+    # they are missing at compose up; a non-recursive chown leaves those
+    # unwritable and every scp into them fails.
+    Invoke-Ec2Step "ensure edge dir" "sudo mkdir -p $remotePath && sudo chown -R ${Ec2User}:${Ec2User} $remotePath"
 
     # Ship every top-level file in the edge folder — nginx.conf, compose, css,
-    # htpasswd, whatever the proxy serves. Subdirectories (logs, certs) stay put.
+    # htpasswd, whatever the proxy serves.
     $files = @(Get-ChildItem -LiteralPath $root -File | Where-Object { $_.Name -ne 'nul' })
     foreach ($f in $files) {
         Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
-        scp -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
+        scp @SSH_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
+    }
+
+    # Content subdirectories the proxy serves (fonts/, vendor/, ...) ship too —
+    # only server-side state stays put. Skipping them is how self-hosted assets
+    # silently never reach prod: docker creates empty mount-point dirs and nginx
+    # serves 404s from them, so fonts fall back and vendored JS never loads.
+    $skipDirs = @('nginx-logs', '.git')
+    $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
+    foreach ($d in $dirs) {
+        Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
+        scp -r @SSH_OPTS -i $PEM_KEY $d.FullName "${SSH_TARGET}:$remotePath/"
+        if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
     }
 
     $certMount = if ($Proj.certsSource) { "-v $($Proj.certsSource):/etc/letsencrypt/:ro " } else { "" }
@@ -662,7 +678,7 @@ function Invoke-DockerDeploy {
     $files = @(Get-ChildItem -LiteralPath $root -File -Force | Where-Object { $_.Name -ne 'nul' })
     foreach ($f in $files) {
         Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
-        scp -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
+        scp @SSH_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
     }
 
