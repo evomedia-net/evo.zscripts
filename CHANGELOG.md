@@ -11,6 +11,14 @@ Notable changes to the Evomedia.net Token Savers.
 ## Unreleased
 
 ### Fixed
+- **`zdeploy` edge kind now ships asset subdirectories** (#42) — the edge
+  deploy uploaded top-level files only, so a project self-hosting assets
+  in folders (`fonts/`, `vendor/`) lost them on every deploy: docker
+  created empty root-owned mount points and nginx served 404s from them,
+  which shows up as fonts silently falling back and vendored JS never
+  loading. Every subdirectory except `nginx-logs/` and `.git/` now ships
+  recursively, and the `ensure edge dir` chown is recursive so scp into
+  docker-created root-owned dirs cannot fail.
 - **`zdeploy` no longer deletes operator-managed files on deploy** (#2) —
   the project-directory replacement preserved only `./.env`, silently
   destroying every other server-side file (`.env.db`, staged signing

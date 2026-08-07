@@ -620,15 +620,30 @@ function Invoke-EdgeDeploy {
     }
 
     Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
-    Invoke-Ec2Step "ensure edge dir" "sudo mkdir -p $remotePath && sudo chown ${Ec2User}:${Ec2User} $remotePath"
+    # -R: docker creates mount-point subdirs (vendor/, fonts/) root-owned when
+    # they are missing at compose up; a non-recursive chown leaves those
+    # unwritable and every scp into them fails.
+    Invoke-Ec2Step "ensure edge dir" "sudo mkdir -p $remotePath && sudo chown -R ${Ec2User}:${Ec2User} $remotePath"
 
     # Ship every top-level file in the edge folder — nginx.conf, compose, css,
-    # htpasswd, whatever the proxy serves. Subdirectories (logs, certs) stay put.
+    # htpasswd, whatever the proxy serves.
     $files = @(Get-ChildItem -LiteralPath $root -File | Where-Object { $_.Name -ne 'nul' })
     foreach ($f in $files) {
         Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
         scp -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
+    }
+
+    # Content subdirectories the proxy serves (fonts/, vendor/, ...) ship too —
+    # only server-side state stays put. Skipping them is how self-hosted assets
+    # silently never reach prod: docker creates empty mount-point dirs and nginx
+    # serves 404s from them, so fonts fall back and vendored JS never loads.
+    $skipDirs = @('nginx-logs', '.git')
+    $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
+    foreach ($d in $dirs) {
+        Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
+        scp -r -i $PEM_KEY $d.FullName "${SSH_TARGET}:$remotePath/"
+        if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
     }
 
     $certMount = if ($Proj.certsSource) { "-v $($Proj.certsSource):/etc/letsencrypt/:ro " } else { "" }
