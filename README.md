@@ -1,5 +1,5 @@
 <!--
-Evomedia.net Token Savers — https://github.com/kellymichels/zscripts-token-savers
+Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 Created by Kelly Michels · dev@evomedia.net
 Licensed under the MIT License. See LICENSE.
 -->
@@ -21,7 +21,7 @@ Every command is a tiny PowerShell script driven by a single JSON config file. T
 No installer. Clone the repo and add the folder to your `PATH`:
 
 ```powershell
-git clone https://github.com/kellymichels/zscripts-token-savers.git C:\tools\zscripts
+git clone https://github.com/evomedia-net/evo.zscripts.git C:\tools\zscripts
 
 # Add to your user PATH (new terminals pick it up automatically)
 [Environment]::SetEnvironmentVariable(

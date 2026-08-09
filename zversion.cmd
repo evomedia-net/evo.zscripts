@@ -1,4 +1,4 @@
-REM Evomedia.net — https://github.com/kellymichels/zscripts-token-savers
+REM Evomedia.net — https://github.com/evomedia-net/evo.zscripts
 REM Created by Kelly Michels · dev@evomedia.net
 REM Licensed under the MIT License. See LICENSE.
 REM Version: v1.0.0.0.0
