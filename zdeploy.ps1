@@ -72,11 +72,24 @@ if ($Projects.Count -eq 0) {
 $Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
 
 if ($Projects -contains 'all') {
-    $allKeys  = Get-ZProjectKeys
-    $edgeKeys = @($allKeys | Where-Object { $cfg.projects.$_.kind -eq 'edge' })
-    $restKeys = @($allKeys | Where-Object { $cfg.projects.$_.kind -ne 'edge' })
-    $Projects = @($edgeKeys + $restKeys)
-    Write-Host "Deploying all projects: $($Projects -join ', ')" -ForegroundColor Cyan
+    $Projects = @(Get-ZProjectKeys)
+}
+
+# Edge kinds first, however the list was produced. This is a correctness
+# property, not a convenience of 'all': the proxy has to route before the apps
+# behind it ship, or there is a window where a new app is live behind stale
+# routing. `zdeploy evo edge` reads as "these two, edge included" and used to
+# do the risky order, because this sort only ran for 'all'.
+# Order within each group is preserved, so an intentional sequence still holds.
+$requested = @($Projects)
+$edgeKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -eq 'edge' })
+$restKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -ne 'edge' })
+$Projects  = @($edgeKeys + $restKeys)
+
+if ($Projects.Count -gt 1) {
+    # Say so when the order changed, so the reordering is never silent.
+    $note = if (($requested -join ',') -ne ($Projects -join ',')) { "  (edge first)" } else { "" }
+    Write-Host "Deploying: $($Projects -join ', ')$note" -ForegroundColor Cyan
 }
 
 function Get-DeployZipName {
