@@ -16,3 +16,6 @@ desktop.ini
 
 # Internal working notes (superseded by TOKEN_SAVINGS.md)
 md/
+
+# Pester coverage output (regenerated; never committed)
+coverage/
