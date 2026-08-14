@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.9
+# Version: v1.0.0.0.10
 
 # zchecksums.ps1 - verify (or regenerate) SHA-256 checksums for the scripts.
 #
