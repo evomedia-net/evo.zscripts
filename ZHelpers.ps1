@@ -194,14 +194,24 @@ function Invoke-DeployGitPull {
         Write-Host "  gitPull set but '$root' is not a git repo - skipping pull." -ForegroundColor Yellow
         return
     }
-    Write-Host "`n--- [0] git pull --ff-only ---" -ForegroundColor Cyan
+    Write-Host "`n--- [0] git sync (fetch + ff-only merge) ---" -ForegroundColor Cyan
     Push-Location -LiteralPath $root
     try {
         $branch = (git rev-parse --abbrev-ref HEAD)
         Write-Host "  Branch: $branch" -ForegroundColor DarkGray
-        git pull --ff-only
+        # Fetch explicitly, then fast-forward against the remote-tracking ref -
+        # not `git pull`. Pull merges whatever FETCH_HEAD marks "for merge",
+        # and a concurrent fetch in the same repo (an editor's background
+        # auto-fetch racing the deploy) can leave duplicate for-merge lines,
+        # killing the run with "Cannot fast-forward to multiple branches" even
+        # when both lines name the same commit. origin/$branch is unambiguous.
+        git fetch origin
         if ($LASTEXITCODE -ne 0) {
-            throw "git pull --ff-only failed in '$root' (branch '$branch'). Resolve it (commit / stash / reconcile), then re-run - refusing to deploy possibly-stale code."
+            throw "git fetch failed in '$root'. Check the remote, then re-run - refusing to deploy possibly-stale code."
+        }
+        git merge --ff-only "origin/$branch"
+        if ($LASTEXITCODE -ne 0) {
+            throw "git merge --ff-only origin/$branch failed in '$root'. Resolve it (commit / stash / reconcile), then re-run - refusing to deploy possibly-stale code."
         }
         Write-Host "  Now at: $(git log -1 --oneline)" -ForegroundColor DarkGray
     }
