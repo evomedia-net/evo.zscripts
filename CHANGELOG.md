@@ -51,7 +51,7 @@ Notable changes to the Evomedia.net Token Savers.
 
 ### Added
 - **Versioned releases: `zversion`, `zrelease`, `releases/`** — the toolkit now
-  carries one version in the SmartPlant 5-segment scheme,
+  carries one version in a 5-segment scheme,
   `v{major}.{rc}.{beta}.{alpha}.{build}`. `zversion bump` (one per PR / defect
   fix) and `zversion bump-stage release|rc|beta|alpha` (zeroes every lower
   segment) rewrite `build-version.json`, stamp `# Version:` into every script
