@@ -384,7 +384,18 @@ function Invoke-PythonDeploy {
             }
             if (-not $BuildVersion) { throw "Build version bump failed after 5 attempts" }
 
-            python $versionTool set $BuildVersion | Out-Null
+            # The local stamp is deliberately NOT mirrored back. Writing it
+            # left build-version.json dirty after every deploy, and committing
+            # that hit branch protection ("Changes must be made through a pull
+            # request") — so each deploy either tripped the NEXT deploy's
+            # clean-tree guard or bypassed the rule. Neither is acceptable as
+            # routine behaviour.
+            #
+            # The repo file now records the STAGE baseline only (it changes on
+            # a stage bump, through a normal PR). The live build number lives
+            # in the container, is written to .build_version below, and is
+            # proven by the /api/build-version check — which is the thing that
+            # actually establishes what is deployed.
             ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "echo '$BuildVersion' | sudo tee $remotePath/.build_version > /dev/null"
             $changelogTool = Join-Path $root "scripts\build_changelog_tool.py"
             if (Test-Path -LiteralPath $changelogTool) {
