@@ -11,6 +11,19 @@ Notable changes to the Evomedia.net Token Savers.
 ## Unreleased
 
 ### Fixed
+- **`scp` no longer receives an ssh-only flag** — the stdin-hang fix added
+  `-n` to `Get-Ec2SshOpts`, and the deploy path splats that same array into
+  `scp` as well as `ssh`. OpenSSH's `scp` has no `-n`: it exits 1 with
+  `unknown option -- n` and prints its usage block, so every upload failed.
+  `Get-Ec2ScpOpts` now supplies the shared connection options with `-n`
+  filtered out, derived from `Get-Ec2SshOpts` rather than duplicated so the
+  timeouts cannot drift apart between the two transports. All four `scp`
+  call sites use it, including the recursive directory upload.
+  The upload failure message also asserted "Likely server disk space"
+  without checking; it now points at `scp`'s own output, where the real
+  diagnosis already was.
+
+### Fixed
 - **Deploys can no longer hang forever on an ssh prompt** — every
   deploy-path `ssh`/`scp` now carries `BatchMode=yes` plus connect and
   keepalive timeouts (`Get-Ec2SshOpts` in `ZHelpers.ps1`). Without

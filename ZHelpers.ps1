@@ -142,12 +142,24 @@ function Get-Ec2Home {
 # rebooting) errors out in about a minute instead of hanging indefinitely.
 function Get-Ec2SshOpts {
     return @(
+        '-n',
         '-o', 'StrictHostKeyChecking=no',
         '-o', 'BatchMode=yes',
         '-o', 'ConnectTimeout=15',
         '-o', 'ServerAliveInterval=15',
         '-o', 'ServerAliveCountMax=4'
     )
+}
+
+# The same options for scp, which does NOT accept -n: OpenSSH's scp exits 1 with
+# "unknown option -- n" and prints its usage block. That failure is easy to
+# misread, because the caller's own error text is what the operator sees while
+# the usage text scrolls past above it.
+#
+# Derived from Get-Ec2SshOpts rather than duplicated, so the timeouts can never
+# drift apart between the two transports.
+function Get-Ec2ScpOpts {
+    return @(Get-Ec2SshOpts | Where-Object { $_ -ne '-n' })
 }
 
 # Run one bash command on the server; throw on non-zero exit.
