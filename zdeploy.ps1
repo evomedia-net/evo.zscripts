@@ -53,6 +53,7 @@ $SSH_TARGET = Get-Ec2Target
 $RemoteHome = Get-Ec2Home
 $Ec2User    = $cfg.ec2.user
 $SSH_OPTS   = Get-Ec2SshOpts   # see ZHelpers.ps1 - these are what stop a deploy hanging
+$SCP_OPTS   = Get-Ec2ScpOpts   # same, minus -n: scp rejects it with a usage error
 
 $TempRoot = $cfg.paths.temp
 if (-not (Test-Path -LiteralPath $TempRoot)) {
@@ -148,9 +149,9 @@ function Invoke-Ec2PostDeployCleanup {
 
 function Send-DeployZip {
     param([string]$LocalZip, [string]$ZipName)
-    scp @SSH_OPTS -i $PEM_KEY $LocalZip "${SSH_TARGET}:$RemoteHome/"
+    scp @SCP_OPTS -i $PEM_KEY $LocalZip "${SSH_TARGET}:$RemoteHome/"
     if ($LASTEXITCODE -ne 0) {
-        throw "SCP upload failed (exit $LASTEXITCODE). Likely server disk space. Try: rm -f $RemoteHome/$ZipName"
+        throw "SCP upload failed (exit $LASTEXITCODE). Read scp's own output above: a usage block means bad arguments, not disk. If it is genuinely full, clear the stale archive: rm -f $RemoteHome/$ZipName"
     }
 }
 
@@ -655,7 +656,7 @@ function Invoke-EdgeDeploy {
     $files = @(Get-ChildItem -LiteralPath $root -File | Where-Object { $_.Name -ne 'nul' })
     foreach ($f in $files) {
         Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
-        scp @SSH_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
+        scp @SCP_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
     }
 
@@ -667,7 +668,7 @@ function Invoke-EdgeDeploy {
     $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
     foreach ($d in $dirs) {
         Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
-        scp -r @SSH_OPTS -i $PEM_KEY $d.FullName "${SSH_TARGET}:$remotePath/"
+        scp -r @SCP_OPTS -i $PEM_KEY $d.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
     }
 
@@ -702,7 +703,7 @@ function Invoke-DockerDeploy {
     $files = @(Get-ChildItem -LiteralPath $root -File -Force | Where-Object { $_.Name -ne 'nul' })
     foreach ($f in $files) {
         Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
-        scp @SSH_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
+        scp @SCP_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
     }
 
