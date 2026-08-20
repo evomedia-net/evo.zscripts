@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.11
+# Version: v1.0.0.0.14
 
 # ZKiller.ps1 — kill then restart dev servers for any project in zconfig.json.
 #
