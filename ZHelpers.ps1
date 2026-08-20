@@ -14,9 +14,9 @@ $script:ArchiveExtensions = @(
 # Directories whose archives are BUILD INPUTS, not incidental bloat, and so are
 # exempt from ArchiveExtensions. A project that vendors a dependency as
 # vendor/*.tgz (common when a bundler cannot resolve `file:` links outside the
-# project root) needs that tarball in the deploy zip — dropping it makes a
-# Dockerfile's `COPY vendor ./vendor` fail at image build time, which is a
-# confusing way to discover the archive filter ate a required file.
+# project root) needs that tarball in the deploy zip - dropping it makes a
+# Dockerfile's `COPY vendor ./vendor` fail at image build, which is a confusing
+# way to discover the archive filter ate a required build input.
 $script:ArchiveKeepDirNames = @('vendor')
 $script:ScriptExtensions = @('.ps1', '.cmd', '.bat')
 $script:JunkExtensions = @(
@@ -140,6 +140,23 @@ function Get-Ec2Home {
 # ConnectTimeout bounds the TCP connect. ServerAlive* bound everything after
 # it, so a session that dies mid-command (dropped VPN, laptop asleep, host
 # rebooting) errors out in about a minute instead of hanging indefinitely.
+# zec2online.ps1 and zsetup_mail.ps1 already set ConnectTimeout; the deploy
+# path, the one place a hang costs the most, set none of them.
+#
+# -n is the one that fixes the hang these options did NOT catch. Without it ssh
+# reads its stdin and forwards it to the remote command, and under PowerShell it
+# inherits the console handle - so it can block forever waiting on input nobody
+# is going to type. The timeouts above cannot help: they bound a connection that
+# is dying, and this one was never established. One deploy stopped under
+# "ensure unzip installed", a step whose body short-circuits when unzip is
+# already present; the server showed no ssh session at all (`who` empty, no
+# docker build running), which is what a client-side stdin block looks like
+# from the other end. The zip had uploaded and prod stayed a release behind.
+#
+# Safe here because nothing that pipes stdin INTO ssh uses these options:
+# zdeploy passes only command strings. Any script that DOES pipe into ssh must
+# build its own option array - adding -n to those would break them, so do not
+# hoist this beyond the deploy path.
 function Get-Ec2SshOpts {
     return @(
         '-n',
@@ -154,7 +171,8 @@ function Get-Ec2SshOpts {
 # The same options for scp, which does NOT accept -n: OpenSSH's scp exits 1 with
 # "unknown option -- n" and prints its usage block. That failure is easy to
 # misread, because the caller's own error text is what the operator sees while
-# the usage text scrolls past above it.
+# the usage text scrolls past above it - one deploy reported "Likely server disk
+# space" on a box with plenty of room.
 #
 # Derived from Get-Ec2SshOpts rather than duplicated, so the timeouts can never
 # drift apart between the two transports.
@@ -191,13 +209,28 @@ function Invoke-Ec2Step {
 
 # ── Deploy git pull ──────────────────────────────────────────────────────────
 
-# Fast-forward the project's checkout before a deploy when deploy.gitPull is set.
-# zdeploy zips the working tree and does NOT otherwise pull, so after a merged
-# PR the checkout can sit behind origin and the deploy would ship stale code
-# while still bumping the build number (looks successful, changes nothing).
-# Aborts the deploy on a failed pull rather than shipping uncertain code. Runs
-# git bare (no 2>&1) and checks $LASTEXITCODE, matching Invoke-Ec2Step under
-# $ErrorActionPreference='Stop'.
+# Put the project's checkout ON the default branch and fast-forward it before
+# a deploy, when deploy.gitPull is set. zdeploy zips the working tree and does
+# NOT otherwise pull, so after a merged PR the checkout can sit behind origin
+# and the deploy would ship stale code while still bumping the build number
+# (looks successful, changes nothing).
+#
+# Deploys ship the default branch, so this SWITCHES to it rather than pulling
+# whatever branch happens to be checked out. The old behaviour pulled the
+# current branch, which breaks as soon as the remote deletes branches on merge:
+# a checkout still sitting on its just-merged PR branch pulls a ref the merge
+# deleted, and the deploy dies on "no such ref was fetched". Worse, when the ref
+# DID still exist, pulling the feature branch meant a deploy could ship a
+# branch rather than the default.
+#
+# The switch refuses to run over local changes: a dirty tree aborts the deploy
+# with the file list rather than risk tangling uncommitted work. The stale
+# branch is left in place for the operator to delete - under squash merges
+# only a content diff can prove it safe, and a deploy is not the place to
+# make that call.
+#
+# Runs git bare (no 2>&1) and checks $LASTEXITCODE, matching Invoke-Ec2Step
+# under $ErrorActionPreference='Stop'.
 function Invoke-DeployGitPull {
     param([Parameter(Mandatory)]$Proj)
     if (-not ($Proj.deploy -and $Proj.deploy.gitPull)) { return }
@@ -206,24 +239,72 @@ function Invoke-DeployGitPull {
         Write-Host "  gitPull set but '$root' is not a git repo - skipping pull." -ForegroundColor Yellow
         return
     }
-    Write-Host "`n--- [0] git sync (fetch + ff-only merge) ---" -ForegroundColor Cyan
+    Write-Host "`n--- [0] git sync default branch ---" -ForegroundColor Cyan
     Push-Location -LiteralPath $root
     try {
-        $branch = (git rev-parse --abbrev-ref HEAD)
-        Write-Host "  Branch: $branch" -ForegroundColor DarkGray
-        # Fetch explicitly, then fast-forward against the remote-tracking ref -
-        # not `git pull`. Pull merges whatever FETCH_HEAD marks "for merge",
-        # and a concurrent fetch in the same repo (an editor's background
-        # auto-fetch racing the deploy) can leave duplicate for-merge lines,
-        # killing the run with "Cannot fast-forward to multiple branches" even
-        # when both lines name the same commit. origin/$branch is unambiguous.
-        git fetch origin
+        # Same PS 5.1 trap Invoke-Ec2Step documents: under the deploy's
+        # ErrorActionPreference='Stop', a stderr REDIRECT on a native command
+        # (the 2>$null on symbolic-ref below) wraps stderr lines in
+        # terminating ErrorRecords. Success is judged by $LASTEXITCODE
+        # throughout, so drop to Continue (function-scoped, auto-reverts).
+        $ErrorActionPreference = 'Continue'
+        git fetch origin --prune
         if ($LASTEXITCODE -ne 0) {
             throw "git fetch failed in '$root'. Check the remote, then re-run - refusing to deploy possibly-stale code."
         }
-        git merge --ff-only "origin/$branch"
+
+        # Ask the remote which branch is the default rather than assuming
+        # "main" - older repos or mirrors may differ.
+        $default = (git symbolic-ref --short refs/remotes/origin/HEAD 2>$null) -replace '^origin/', ''
+        if (-not $default) {
+            git remote set-head origin --auto | Out-Null
+            $default = (git symbolic-ref --short refs/remotes/origin/HEAD 2>$null) -replace '^origin/', ''
+        }
+        if (-not $default) { $default = 'main' }
+
+        $branch = (git rev-parse --abbrev-ref HEAD)
+        if ($branch -ne $default) {
+            # Tracked modifications only. Untracked files cannot be tangled
+            # by a branch switch, and zdeploy has always shipped them (the
+            # zip takes the working tree) - blocking on them would abort
+            # every deploy over stray local files.
+            $dirty = git status --porcelain --untracked-files=no
+            # Files the DEPLOY itself writes are excluded. zdeploy stamps the
+            # bumped build version (and appends the changelog) into the working
+            # tree after every successful run, so leaving them in scope made
+            # each deploy block the next one - the operator had to commit or
+            # stash a change they never made. The guard exists to stop
+            # unreviewed SOURCE shipping; a stamp the script just wrote is not
+            # that. It is still committed separately, one bump per PR, per the
+            # versioning rule - this only stops it being a gate.
+            $deployWritten = @('build-version.json', 'CHANGELOG.md')
+            $dirty = $dirty | Where-Object {
+                $path = ($_ -replace '^..\s+', '') -replace '^.*/', ''
+                $deployWritten -notcontains $path
+            }
+            if ($dirty) {
+                $files = ($dirty | ForEach-Object { "    $_" }) -join "`n"
+                throw "Checkout is on '$branch' with local changes:`n$files`n  Deploys ship '$default'. Commit or stash, then re-run."
+            }
+            Write-Host "  On '$branch'; deploys ship '$default' - switching." -ForegroundColor Yellow
+            git checkout $default
+            if ($LASTEXITCODE -ne 0) {
+                throw "git checkout $default failed in '$root'. Resolve it, then re-run."
+            }
+            Write-Host "  Stale branch '$branch' left in place - delete it once you've confirmed it merged." -ForegroundColor DarkGray
+        }
+
+        # Fast-forward against the remote-tracking ref, not `git pull`. The
+        # fetch at the top of this function already brought origin up to date,
+        # so pull's own fetch was redundant - and it was also the failure
+        # point: pull merges whatever FETCH_HEAD marks "for merge", and a
+        # concurrent fetch in the same repo (an editor's background auto-fetch
+        # racing the deploy) can leave duplicate for-merge lines, killing the
+        # run with "Cannot fast-forward to multiple branches" even when both
+        # lines name the same commit. origin/$default has no such ambiguity.
+        git merge --ff-only "origin/$default"
         if ($LASTEXITCODE -ne 0) {
-            throw "git merge --ff-only origin/$branch failed in '$root'. Resolve it (commit / stash / reconcile), then re-run - refusing to deploy possibly-stale code."
+            throw "git merge --ff-only origin/$default failed in '$root'. Resolve it (commit / stash / reconcile), then re-run - refusing to deploy possibly-stale code."
         }
         Write-Host "  Now at: $(git log -1 --oneline)" -ForegroundColor DarkGray
     }
@@ -604,9 +685,39 @@ if ($null -eq $global:_ZMeasuring) { $global:_ZMeasuring = $false }
 
 function Start-ZTracking {
     if ($global:_ZMeasuring) { return }
+    # Remember who is being tracked so Stop-ZTracking can log the run (ztokens).
+    try { $global:_ZTrackScript = [System.IO.Path]::GetFileNameWithoutExtension((Get-PSCallStack)[1].ScriptName) } catch { $global:_ZTrackScript = "" }
+    try {
+        $bp = (Get-PSCallStack)[1].InvocationInfo.BoundParameters
+        $global:_ZTrackProjects = (@($bp['Projects']) -join ',')
+    } catch { $global:_ZTrackProjects = "" }
     $tp = Join-Path ([System.IO.Path]::GetTempPath()) ("_ztrack_" + [System.Guid]::NewGuid().ToString("N") + ".txt")
     $global:_ZTrackPath = $tp
     try { Start-Transcript -Path $tp -NoClobber | Out-Null } catch { $global:_ZTrackPath = $null }
+}
+
+# Append this run to the ztokens data store (passive usage stats). Uses
+# $env:ZTOKENS_DATA, else the sibling ..\ztokens\data directory. Silently
+# no-ops when neither exists, so setups without ztokens are unaffected.
+function Add-ZTokensRecord {
+    param([int]$Lines, [int]$Chars, [int]$Est)
+    try {
+        $dir = $env:ZTOKENS_DATA
+        if (-not $dir) { $dir = Join-Path (Split-Path -Parent $PSScriptRoot) "ztokens\data" }
+        if (-not (Test-Path -LiteralPath $dir)) { return }
+        $model = $env:ZTOKENS_MODEL
+        if (-not $model) { $model = "est. chars/3.5" }
+        $rec = @{
+            ts       = (Get-Date).ToString("o")
+            script   = [string]$global:_ZTrackScript
+            projects = [string]$global:_ZTrackProjects
+            lines    = $Lines
+            chars    = $Chars
+            est      = $Est
+            model    = $model
+        }
+        Add-Content -LiteralPath (Join-Path $dir "tokens.jsonl") -Value (ConvertTo-Json -InputObject $rec -Compress) -Encoding UTF8
+    } catch { }
 }
 
 function Stop-ZTracking {
@@ -633,6 +744,7 @@ function Stop-ZTracking {
         $tok  = [math]::Round($cc / 3.5)
         Write-Host ""
         Write-Host ("--- {0:N0} lines / {1:N0} chars / ~{2:N0} tokens est. (Claude Code) ---" -f $lc, $cc, $tok) -ForegroundColor DarkGray
+        Add-ZTokensRecord -Lines $lc -Chars $cc -Est $tok
     } catch {}
     Remove-Item -LiteralPath $tp -Force -ErrorAction SilentlyContinue
 }

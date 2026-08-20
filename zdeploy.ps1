@@ -9,12 +9,21 @@
 #
 # Usage:
 #   zdeploy <project> [<project> ...] [-Note "message"]
-#   zdeploy all                       # every project (edge kinds first), stop at first failure
+#   zdeploy all                       # ztokens first, then every project (edge kinds next), stop at first failure
+#   zdeploy ztokens                   # refresh the live-usage stats (see below)
 #
 # Examples:
 #   zdeploy viteapp
 #   zdeploy pyapp -Note "fix billing banner"
 #   zdeploy all -Note "weekly release"
+#   zdeploy ztokens evo               # refresh token-stats.json, then ship the site with it
+#
+# "ztokens" is an OPTIONAL pseudo-project, not a zconfig entry: it runs
+# `ztokens -Publish` from a sibling ztokens checkout, if you have one, to
+# refresh a token-stats.json a site can chart. With no such checkout the step
+# prints a skip and the rest of the run is unaffected. `all` runs it first
+# automatically; called standalone, list it before a site project (as above) so
+# that project's deploy zip picks up the freshly written file.
 #
 # Flow (python/vite/nextjs): zip source -> free server disk space -> scp up ->
 # unzip into remote.path (preserving server-side .env* files and anything in
@@ -25,15 +34,12 @@
 #   python kind: app service "app", db service "db"
 #   nextjs kind: app service "web", db service "db"
 #
-# Verification (python kind when there is no scripts/build_version_tool.py, and
-# nextjs kind):
+# Verification (python kind, when there is no scripts/build_version_tool.py):
 #   Projects with a "verify" block are checked ON the server via
 #   localhost:<port><path> — the only accurate way for stacks that are not
 #   published through the edge proxy. Projects with only a "domain" fall back
 #   to a Host-header request. Projects with neither are reported as NOT
 #   verified rather than passing on the proxy's default vhost.
-#   A compose stack usually publishes to 127.0.0.1 only, so probing the public
-#   IP on the app's port can never answer — give those a "verify" block.
 #
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
@@ -50,10 +56,10 @@ $EC2_IP     = $cfg.ec2.ip
 $PEM_KEY    = $cfg.ec2.pemKey
 $STACK_ROOT = $cfg.ec2.stackRoot
 $SSH_TARGET = Get-Ec2Target
-$RemoteHome = Get-Ec2Home
-$Ec2User    = $cfg.ec2.user
 $SSH_OPTS   = Get-Ec2SshOpts   # see ZHelpers.ps1 - these are what stop a deploy hanging
 $SCP_OPTS   = Get-Ec2ScpOpts   # same, minus -n: scp rejects it with a usage error
+$RemoteHome = Get-Ec2Home
+$Ec2User    = $cfg.ec2.user
 
 $TempRoot = $cfg.paths.temp
 if (-not (Test-Path -LiteralPath $TempRoot)) {
@@ -63,9 +69,10 @@ if (-not (Test-Path -LiteralPath $TempRoot)) {
 if ($Projects.Count -eq 0) {
     $keys = (Get-ZProjectKeys) -join ', '
     Write-Host ""
-    Write-Host "Usage: zdeploy <project> [<project> ...] | all  [-Note `"message`"]" -ForegroundColor Yellow
+    Write-Host "Usage: zdeploy <project> [<project> ...] | all | ztokens  [-Note `"message`"]" -ForegroundColor Yellow
     Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
     Write-Host "  'all' deploys everything (edge kinds first) and stops at the first failure." -ForegroundColor Gray
+    Write-Host "  'ztokens' refreshes live-usage stats, if a sibling ztokens checkout exists." -ForegroundColor Gray
     Stop-ZTracking; exit 1
 }
 
@@ -73,7 +80,8 @@ if ($Projects.Count -eq 0) {
 $Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
 
 if ($Projects -contains 'all') {
-    $Projects = @(Get-ZProjectKeys)
+    # 'ztokens' first so any site project deployed below picks up fresh stats.
+    $Projects = @('ztokens') + @(Get-ZProjectKeys)
 }
 
 # Edge kinds first, however the list was produced. This is a correctness
@@ -81,7 +89,8 @@ if ($Projects -contains 'all') {
 # behind it ship, or there is a window where a new app is live behind stale
 # routing. `zdeploy evo edge` reads as "these two, edge included" and used to
 # do the risky order, because this sort only ran for 'all'.
-# Order within each group is preserved, so an intentional sequence still holds.
+# Order within each group is preserved, so an intentional sequence still holds
+# — notably `zdeploy ztokens evo`, where ztokens must still precede evo.
 $requested = @($Projects)
 $edgeKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -eq 'edge' })
 $restKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -ne 'edge' })
@@ -239,7 +248,14 @@ function Wait-VerifyApiBuild {
     param([string]$Key, $Proj, [string]$ExpectedLabel, [int]$TimeoutSec = 60)
     Write-Host "`n--- [$Key] Live build verification (expect $ExpectedLabel) ---" -ForegroundColor Cyan
     $headers = @{}
-    if ($Proj.domain) { $headers['Host'] = $Proj.domain }
+    # deploy.verifyHost overrides domain for verification only. The Host header
+    # decides which edge vhost answers, and a project's public host can be
+    # deliberately unroutable while the app is perfectly healthy - that is why
+    # the override exists. Reach for it when a domain is being retired ahead of
+    # its replacement: the old host may be returning 410 while the new one has
+    # no DNS yet, so neither answers even though the app is fine.
+    $verifyHost = if ($Proj.deploy -and $Proj.deploy.verifyHost) { $Proj.deploy.verifyHost } else { $Proj.domain }
+    if ($verifyHost) { $headers['Host'] = $verifyHost }
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
         try {
@@ -526,6 +542,11 @@ function Invoke-NextDeploy {
     $prevLoc     = Get-Location
     $root        = $Proj.localRoot
     $remotePath  = $Proj.remote.path
+    # Same resolution as the python handler. Must be computed HERE: PowerShell
+    # function scope means the copy in Invoke-PythonDeploy is invisible from
+    # this one, and an unset variable interpolates to an empty string — so
+    # "cd  && docker compose down" quietly runs in the home directory.
+    $composeDir  = if ($Proj.remote.composeDir) { $Proj.remote.composeDir } else { $remotePath }
     $appSvc      = if ($Proj.remote.appService) { $Proj.remote.appService } else { "web" }
     $zipName     = Get-DeployZipName -Key $Key -Proj $Proj
     $zipLocal    = Join-Path $TempRoot $zipName
@@ -538,13 +559,38 @@ function Invoke-NextDeploy {
         Write-Host "`n=== $($Proj.label) deploy (nextjs) ===" -ForegroundColor Cyan
         Write-Host "Local zip: $zipLocal" -ForegroundColor DarkGray
 
+        # Stamp the build version from git before zipping, if the project says
+        # how (deploy.stampCmd in zconfig). The image has no .git - it is in the
+        # archive excludes - so the number has to be written on this side of the
+        # zip.
+        #
+        # Written, zipped, then reverted: zdeploy refuses a dirty tree, so a
+        # stamp that dirtied it every deploy would block the next one. The
+        # committed file stays a fallback for local dev; the number that ships
+        # is derived from the commit being deployed.
+        $stampCmd     = if ($Proj.deploy -and $Proj.deploy.stampCmd) { $Proj.deploy.stampCmd } else { $null }
+        $stampFile    = if ($Proj.deploy -and $Proj.deploy.stampFile) { $Proj.deploy.stampFile } else { "public/build-version.json" }
+        $stampedLabel = $null
+        if ($stampCmd) {
+            Write-Host "`n--- [0] Stamping build version from git ---" -ForegroundColor Cyan
+            $out = & cmd /c $stampCmd 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "Build stamp failed: $out" }
+            $stampedLabel = ($out | Select-Object -Last 1).ToString().Trim()
+            Write-Host "  $stampedLabel  (derived from the commit, not a counter)" -ForegroundColor Gray
+        }
+
         $preZipBuild = Read-JsonBuildVersion -FilePath (Join-Path $root "public\build-version.json")
-        if ($preZipBuild) {
-            Write-Host "  Pre-zip build label: $(Get-LabelFromBuildJsonObj $preZipBuild) (server-side build will bump +1)" -ForegroundColor Gray
+        if ($preZipBuild -and -not $stampedLabel) {
+            Write-Host "  Pre-zip build label: $(Get-LabelFromBuildJsonObj $preZipBuild)" -ForegroundColor Gray
         }
 
         Write-Host "`n--- [1] Zipping project files ---" -ForegroundColor Cyan
         New-ProjectArchive -SourcePath $root -DestinationZip $zipLocal -TopLevelExclude (Get-ArchiveExcludes -Project $Proj)
+
+        if ($stampCmd) {
+            # Tree back to clean now the number is inside the archive.
+            git -C $root checkout -- $stampFile 2>&1 | Out-Null
+        }
 
         Invoke-Ec2PreflightCleanup -ExtraZipsToRemove @("$RemoteHome/$zipName")
 
@@ -561,16 +607,39 @@ function Invoke-NextDeploy {
         Restore-OperatorFiles -Key $Key -RemotePath $remotePath
 
         Write-Host "`n--- [4] Docker compose rebuild ---" -ForegroundColor Cyan
-        Invoke-Ec2Step "docker compose down" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose down"
-        Invoke-Ec2Step "docker compose build" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose build"
-        Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo COMPOSE_BAKE=false docker compose up -d"
+        # composeDir, not remotePath: a project whose compose lives in a
+        # subdirectory (deploy/, infra/, ...) otherwise runs these against
+        # whatever docker-compose.yml happens to sit at the project root. That
+        # is usually the LOCAL DEV compose, which ships in the same archive —
+        # so the deploy recycled a dev database, found no app service to build,
+        # exited 0, and left the previous image serving. Verification passed
+        # because the untouched old container still answered. Two deploys in a
+        # row silently shipped nothing.
+        # Assert locally, not just on the server: `test -d $composeDir` with an
+        # empty value becomes bare `test -d`, which is TRUE (one non-empty
+        # argument), so the remote guard cannot catch this.
+        if ([string]::IsNullOrWhiteSpace($composeDir)) { throw "composeDir resolved empty for '$Key' - compose would run in the wrong directory." }
+        Invoke-Ec2Step "require compose file" "test -f $composeDir/docker-compose.yml || test -f $composeDir/docker-compose.yaml"
+        # BUILD BEFORE DOWN. This used to run `down` first, which took the site
+        # offline for the whole build - minutes for a Next.js app - and left it
+        # offline if the build failed. That is not hypothetical: one deploy
+        # stopped the stack, the build did not finish, and the site served 502
+        # for 19 hours with no container running at all. The
+        # old image keeps serving while the new one builds, so a failed build is
+        # now harmless and the outage is the seconds between down and up.
+        #
+        # Named service, like the python handler: a compose file that does not
+        # define it fails here instead of succeeding with nothing to do.
+        Invoke-Ec2Step "docker compose build $appSvc" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose build $appSvc"
+        Invoke-Ec2Step "docker compose down" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose down"
+        Invoke-Ec2Step "docker compose up -d" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose up -d"
 
         if ($Proj.db -and $Proj.db.user -and $Proj.db.name) {
-            $waitDb = "cd $remotePath && for i in `$(seq 1 30); do sudo docker compose exec -T db pg_isready -U $($Proj.db.user) -d $($Proj.db.name) >/dev/null 2>&1 && break; sleep 2; done"
+            $waitDb = "cd $composeDir && for i in `$(seq 1 30); do sudo docker compose exec -T db pg_isready -U $($Proj.db.user) -d $($Proj.db.name) >/dev/null 2>&1 && break; sleep 2; done"
             Invoke-Ec2Step "wait for postgres ready" $waitDb
         }
         if ($Proj.migrations -eq "prisma") {
-            Invoke-Ec2Step "apply prisma migrations" "cd $remotePath && sudo docker compose exec -T $appSvc npx prisma migrate deploy"
+            Invoke-Ec2Step "apply prisma migrations" "cd $composeDir && sudo docker compose exec -T $appSvc npx prisma migrate deploy"
         }
         Invoke-Ec2Step "record deploy timestamp; remove remote zip" "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $remotePath/.last_deploy_utc > /dev/null && rm -f $RemoteHome/$zipName"
 
@@ -604,12 +673,12 @@ function Invoke-NextDeploy {
             }
         } else {
             Write-Host "  Deploy finished - NOT verified." -ForegroundColor Yellow
-            Write-Host "  No 'domain' and no 'verify' block in zconfig.json for '$Key'," -ForegroundColor Yellow
-            Write-Host '  Add to the project: "verify": { "port": <hostPort>, "path": "/health" }' -ForegroundColor Gray
+            Write-Host "  No 'domain' and no 'verify' block in zconfig.json for '$Key'." -ForegroundColor Yellow
         }
-        if ($preZipBuild) {
-            # Committed stamp, not +1 — see the note in Wait-VerifyStaticBuild.
-            $expectedLabel = Get-LabelFromBuildJsonObj $preZipBuild
+        if ($stampedLabel -or $preZipBuild) {
+            # The label that actually went into the archive: the derived one
+            # when the project stamps, otherwise the committed stamp.
+            $expectedLabel = if ($stampedLabel) { $stampedLabel } else { Get-LabelFromBuildJsonObj $preZipBuild }
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $expectedLabel -TimeoutSec 60 | Out-Null
         } else {
             Write-Host "  (No public/build-version.json - version verification skipped. See 'Enabling deploy verification' in README.)" -ForegroundColor DarkYellow
@@ -715,9 +784,50 @@ function Invoke-DockerDeploy {
     Write-DeployLocation -Proj $Proj
 }
 
+# Pseudo-project "ztokens": not a zconfig entry, no compose stack, and entirely
+# optional. Runs `ztokens -Publish` from a sibling ztokens checkout so a site
+# that charts usage data has something current to ship. Missing checkout, or a
+# failure, warns rather than aborting the rest of the deploy list - it is a
+# nice-to-have refresh, not a deploy step.
+function Invoke-ZTokensPublish {
+    Write-Host "`n=== ztokens: refreshing live-usage stats ===" -ForegroundColor Cyan
+    $ztokensScript = Join-Path (Split-Path -Parent $PSScriptRoot) "ztokens\ztokens.ps1"
+    if (-not (Test-Path -LiteralPath $ztokensScript)) {
+        Write-Host "  ztokens.ps1 not found at $ztokensScript - skipping." -ForegroundColor Yellow
+        return
+    }
+    # Post-condition, not decoration. This step ran clean for five days while
+    # publishing nothing: ztokens.ps1 had no -Publish switch, and as a simple
+    # script PowerShell swallowed the unknown parameter into $args rather than
+    # failing. The catch below never fired because nothing threw. So the check
+    # is not "did it throw" but "did the file actually move".
+    $statsFile = Join-Path (Split-Path -Parent $PSScriptRoot) "www\public\token-stats.json"
+    $before = if (Test-Path -LiteralPath $statsFile) { (Get-Item -LiteralPath $statsFile).LastWriteTimeUtc } else { [datetime]::MinValue }
+    try {
+        & $ztokensScript -Publish
+    } catch {
+        Write-Host "  ztokens -Publish failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        return
+    }
+    $after = if (Test-Path -LiteralPath $statsFile) { (Get-Item -LiteralPath $statsFile).LastWriteTimeUtc } else { [datetime]::MinValue }
+    if ($after -le $before) {
+        Write-Host "  WARNING: token-stats.json was not rewritten - the site will ship the old numbers." -ForegroundColor Yellow
+        if ($before -eq [datetime]::MinValue) {
+            Write-Host "    $statsFile does not exist." -ForegroundColor DarkGray
+        } else {
+            Write-Host ("    Still dated {0:yyyy-MM-dd HH:mm} local." -f $before.ToLocalTime()) -ForegroundColor DarkGray
+        }
+        Write-Host "    Run 'ztokens -Publish' by hand to see why." -ForegroundColor DarkGray
+    }
+}
+
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
 foreach ($key in $Projects) {
+    # 'ztokens' matches the tool it runs (ztokens.cmd / ztokens.ps1). The old
+    # singular 'ztoken' still works so existing habits and any script that
+    # already calls it keep running.
+    if ($key -in @('ztokens', 'ztoken')) { Invoke-ZTokensPublish; continue }
     $proj = Get-ZProject -Key $key
     Invoke-DeployGitPull -Proj $proj   # no-op unless deploy.gitPull is set
     switch ([string]$proj.kind) {
