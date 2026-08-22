@@ -776,6 +776,30 @@ function Invoke-DockerDeploy {
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
     }
 
+    # Config subdirectories ship too, exactly as the edge kind does. Uploading
+    # top-level files ONLY was silently wrong for any stack that keeps config in
+    # a directory: the compose file arrives, the containers restart, and the
+    # config they read is whatever was already on the box. That is worse than a
+    # failed deploy, because it reports success - a provisioning directory read
+    # at container start (alert rules, datasources, mounted *.php) would never
+    # reflect the change you just deployed.
+    #
+    # Skipped: $JunkDirNames (.git, __pycache__, .pytest_cache, ...) plus
+    # anything the project lists in deploy.skipDirs. That list is how a stack
+    # protects SERVER-SIDE STATE that happens to share the tree - a data/ holding
+    # mailboxes or a time-series database must never be overwritten by whatever
+    # the local checkout has (usually nothing, which is the dangerous case).
+    # .github is CI config - it belongs in the repo and never on a deploy
+    # target. It is not in $JunkDirNames because backups DO want it.
+    $skipDirs = @($script:JunkDirNames) + @('.github')
+    if ($Proj.deploy -and $Proj.deploy.skipDirs) { $skipDirs += @($Proj.deploy.skipDirs) }
+    $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
+    foreach ($d in $dirs) {
+        Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
+        scp -r @SCP_OPTS -i $PEM_KEY $d.FullName "${SSH_TARGET}:$remotePath/"
+        if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
+    }
+
     Invoke-Ec2Step "docker compose pull" "cd $remotePath && sudo docker compose pull"
     Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo docker compose up -d"
 
