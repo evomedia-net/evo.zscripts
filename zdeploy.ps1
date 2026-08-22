@@ -490,7 +490,7 @@ function Invoke-ViteDeploy {
         Write-Host "`n--- [1] Zipping site ---" -ForegroundColor Cyan
         $preZipBuild = Read-JsonBuildVersion -FilePath (Join-Path $root "build-version.json")
         if ($preZipBuild) {
-            Write-Host "  Pre-zip build label: $(Get-LabelFromBuildJsonObj $preZipBuild) (server-side build will bump +1)" -ForegroundColor Gray
+            Write-Host "  Pre-zip build label: $(Get-LabelFromBuildJsonObj $preZipBuild) (verification expects this exact label)" -ForegroundColor Gray
         }
         New-ProjectArchive -SourcePath $root -DestinationZip $zipLocal -TopLevelExclude (Get-ArchiveExcludes -Project $Proj)
 
