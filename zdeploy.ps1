@@ -5,7 +5,7 @@
 
 # zdeploy.ps1 — deploy any project defined in zconfig.json to the server.
 # Each project runs its own docker compose stack; the handler is picked by the
-# project's "kind": python | vite | nextjs | edge | docker.
+# project's "kind": python | vite | nextjs | edge | docker | static.
 #
 # Usage:
 #   zdeploy <project> [<project> ...] [-Note "message"]
@@ -756,6 +756,46 @@ function Invoke-EdgeDeploy {
     Write-Host "--- [Done] Edge proxy deploy finished ---" -ForegroundColor Green
 }
 
+function Invoke-StaticDeploy {
+    param([string]$Key, $Proj)
+
+    # Plain static sites - no build, no container of their own. A shared web
+    # container serves them straight off disk, so shipping the files IS the
+    # deploy: there is nothing to restart afterwards.
+    $root       = Join-Path $Proj.localRoot $Proj.siteDir
+    $remotePath = $Proj.remote.path
+
+    Write-Host "`n=== $($Proj.label) deploy (static files) ===" -ForegroundColor Cyan
+    if (-not (Test-Path -LiteralPath $root)) { throw "Static site root not found: $root" }
+    if (-not (Test-Path -LiteralPath (Join-Path $root 'index.html'))) { throw "Missing $root\index.html" }
+
+    Invoke-Ec2Step "ensure site dir" "sudo mkdir -p $remotePath && sudo chown -R ${Ec2User}:${Ec2User} $remotePath"
+
+    $files = @(Get-ChildItem -LiteralPath $root -File)
+    foreach ($f in $files) {
+        Write-Host "  >> uploading $($f.Name)" -ForegroundColor DarkCyan
+        scp @SCP_OPTS -i $PEM_KEY $f.FullName "${SSH_TARGET}:$remotePath/"
+        if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($f.Name) (exit $LASTEXITCODE)" }
+    }
+
+    # A large media file uploaded in place is served half-written to anyone who
+    # requests it mid-copy. Ship each directory to a sibling, then swap it in -
+    # the swap is a rename, so the switch is atomic and visitors never see a
+    # partial file.
+    $skipDirs = @($script:JunkDirNames) + @('.github')
+    if ($Proj.deploy -and $Proj.deploy.skipDirs) { $skipDirs += @($Proj.deploy.skipDirs) }
+    $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
+    foreach ($d in $dirs) {
+        Write-Host "  >> uploading $($d.Name)/ (recursive, staged)" -ForegroundColor DarkCyan
+        Invoke-Ec2Step "stage $($d.Name)" "rm -rf $remotePath/.staging-$($d.Name) && mkdir -p $remotePath/.staging-$($d.Name)"
+        scp -r @SCP_OPTS -i $PEM_KEY "$($d.FullName)/*" "${SSH_TARGET}:$remotePath/.staging-$($d.Name)/"
+        if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
+        Invoke-Ec2Step "swap in $($d.Name)" "rm -rf $remotePath/$($d.Name) && mv $remotePath/.staging-$($d.Name) $remotePath/$($d.Name)"
+    }
+
+    Write-Host "--- [Done] Static site deploy finished ---" -ForegroundColor Green
+}
+
 function Invoke-DockerDeploy {
     param([string]$Key, $Proj)
 
@@ -860,6 +900,7 @@ foreach ($key in $Projects) {
         "nextjs" { Invoke-NextDeploy   -Key $key -Proj $proj -ChangeNote $Note }
         "edge"   { Invoke-EdgeDeploy   -Key $key -Proj $proj }
         "docker" { Invoke-DockerDeploy -Key $key -Proj $proj }
+        "static" { Invoke-StaticDeploy -Key $key -Proj $proj }
         default  { throw "No deploy handler for kind '$($proj.kind)' (project '$key'). Add an Invoke-<Kind>Deploy function in zdeploy.ps1." }
     }
 }
