@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.14
+# Version: v1.0.0.0.18
 
 # zec2_rotatekeys.ps1 - rotate / reset secret keys in a project's SERVER-SIDE
 # .env, in place, without the values ever passing through this machine's shell
