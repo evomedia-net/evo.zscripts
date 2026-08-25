@@ -54,6 +54,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Two blank lines after this script's output, matching every other z-script, so
+# a run is visually separated from the next prompt. Local rather than from
+# ZHelpers: this script is deliberately standalone, so it can run from an
+# extracted release zip with nothing beside it.
+function Write-ZTrailer { Write-Host ""; Write-Host "" }
+
+
 $ManifestName = "CHECKSUMS.txt"
 $Manifest = Join-Path $PSScriptRoot $ManifestName
 
@@ -99,13 +106,14 @@ if ($Update) {
     Write-Host "=== zchecksums (updated) ===" -ForegroundColor Cyan
     Write-Host ("  Wrote {0} with {1} entries." -f $ManifestName, $files.Count) -ForegroundColor Green
     Write-Host "  Commit it alongside the script change, or verification will fail." -ForegroundColor DarkGray
-    Write-Host ""
+    Write-ZTrailer
     exit 0
 }
 
 $expected = Read-Manifest
 if ($null -eq $expected) {
     Write-Host "ERROR: $ManifestName not found. Run 'zchecksums -Update' to create it." -ForegroundColor Red
+    Write-ZTrailer
     exit 1
 }
 
@@ -134,11 +142,11 @@ if (-not $Quiet) {
 
 if ($bad -eq 0) {
     Write-Host ("  OK - {0} file(s) match {1}." -f $ok, $ManifestName) -ForegroundColor Green
-    Write-Host ""
+    Write-ZTrailer
     exit 0
 }
 
 Write-Host ("  FAILED - {0} ok, {1} changed, {2} missing, {3} unlisted." -f $ok, $changed.Count, $missing.Count, $unlisted.Count) -ForegroundColor Red
 Write-Host "  If you changed a script on purpose, run: zchecksums -Update" -ForegroundColor DarkGray
-Write-Host ""
+Write-ZTrailer
 exit 1

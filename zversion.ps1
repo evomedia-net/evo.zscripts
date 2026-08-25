@@ -43,6 +43,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Two blank lines after this script's output, matching every other z-script, so
+# a run is visually separated from the next prompt. Local rather than from
+# ZHelpers: this script is deliberately standalone, so it can run from an
+# extracted release zip with nothing beside it.
+function Write-ZTrailer { Write-Host ""; Write-Host "" }
+
+
 $VersionFile = Join-Path $PSScriptRoot "build-version.json"
 $VersionRe = '^v(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)$'
 $DefaultVersion = "v1.0.0.0.0"
@@ -113,11 +120,13 @@ $current = Read-Version
 switch ($Command.ToLowerInvariant().TrimStart('-')) {
     "get" {
         Write-Host $current
+        Write-ZTrailer
         exit 0
     }
     "bump" {
         $p = Split-Version $current
         Update-Everything ("v{0}.{1}.{2}.{3}.{4}" -f $p[0], $p[1], $p[2], $p[3], ($p[4] + 1))
+        Write-ZTrailer
         exit 0
     }
     "bump-stage" {
@@ -130,16 +139,19 @@ switch ($Command.ToLowerInvariant().TrimStart('-')) {
             "alpha"   { $alpha++ }
             default {
                 Write-Host "ERROR: stage must be one of: release, rc, beta, alpha" -ForegroundColor Red
+                Write-ZTrailer
                 exit 1
             }
         }
         # Bumping a stage zeroes every lower segment, build included.
         Update-Everything ("v{0}.{1}.{2}.{3}.0" -f $major, $rc, $beta, $alpha)
+        Write-ZTrailer
         exit 0
     }
     "set" {
         [void](Split-Version $Value)
         Update-Everything $Value
+        Write-ZTrailer
         exit 0
     }
     default {
@@ -148,7 +160,7 @@ switch ($Command.ToLowerInvariant().TrimStart('-')) {
         Write-Host "  Scheme: v{major}.{rc}.{beta}.{alpha}.{build}  (current: $current)" -ForegroundColor Gray
         Write-Host "  bump        build + 1 - one per PR, one per defect fix" -ForegroundColor Gray
         Write-Host "  bump-stage  raise a stage; every lower segment resets to 0" -ForegroundColor Gray
-        Write-Host ""
+        Write-ZTrailer
         exit 1
     }
 }

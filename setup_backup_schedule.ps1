@@ -27,6 +27,7 @@ Write-Host ""
 if (-not (Test-Path -LiteralPath $ScriptPath)) {
     Write-Host "ERROR: Script not found: $ScriptPath" -ForegroundColor Red
     Write-Host "       Check paths.scriptsRoot in zconfig.json" -ForegroundColor DarkGray
+    Write-ZTrailer
     exit 1
 }
 
@@ -40,6 +41,7 @@ if ($existingTask) {
         Write-Host "Deleted existing task." -ForegroundColor Green
     } else {
         Write-Host "Keeping existing task. Exiting." -ForegroundColor Yellow
+        Write-ZTrailer
         exit 0
     }
 }

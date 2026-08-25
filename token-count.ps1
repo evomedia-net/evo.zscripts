@@ -170,4 +170,4 @@ Write-Host ""
 Write-Host "Note: zdeploy output varies significantly between runs." -ForegroundColor DarkGray
 Write-Host "      First run after package updates can be 2-3x larger than a cached run." -ForegroundColor DarkGray
 Write-Host "      Run zdeploy twice and use the second (cached) figure for TOKEN_SAVINGS.md." -ForegroundColor DarkGray
-Write-Host ""
+Write-ZTrailer

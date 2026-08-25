@@ -61,13 +61,13 @@ function Get-ZConfig {
     if (-not (Test-Path -LiteralPath $configPath)) {
         Write-Host "ERROR: zconfig.json not found at $configPath" -ForegroundColor Red
         Write-Host "       Copy zconfig.example.json to zconfig.json and fill in your values." -ForegroundColor DarkGray
-        exit 1
+        Stop-ZTracking; exit 1
     }
     try {
         $script:ZConfigCache = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
     } catch {
         Write-Host "ERROR: Failed to parse zconfig.json - $($_.Exception.Message)" -ForegroundColor Red
-        exit 1
+        Stop-ZTracking; exit 1
     }
     return $script:ZConfigCache
 }
@@ -87,7 +87,7 @@ function Get-ZProject {
     if (-not $proj) {
         $available = (Get-ZProjectKeys) -join ', '
         Write-Host "ERROR: Unknown project key '$Key'. Available: $available" -ForegroundColor Red
-        exit 1
+        Stop-ZTracking; exit 1
     }
     return $proj
 }
@@ -720,8 +720,29 @@ function Add-ZTokensRecord {
     } catch { }
 }
 
+# Two blank lines below every z-script's output, so a run is visually separated
+# from the next prompt instead of butting up against it. Emitted here because
+# every script ends by calling Stop-ZTracking - including the usage and guard
+# paths that `Stop-ZTracking; exit 1` - so one place covers every exit.
+#
+# -FinalNote prints one last line AFTER the tracking footer but BEFORE the blank
+# lines, for a script that wants the bottom of the screen to say something more
+# useful than a token count (zdeploy's "Last deployed at ...").
+function Write-ZTrailer {
+    param([string]$FinalNote)
+    if ($FinalNote) {
+        Write-Host ""
+        Write-Host $FinalNote -ForegroundColor Cyan
+    }
+    Write-Host ""
+    Write-Host ""
+}
+
 function Stop-ZTracking {
-    if (-not $global:_ZTrackPath) { return }
+    param([string]$FinalNote)
+    # The trailer is owed whether or not tracking ever started - a script that
+    # printed output still deserves the separation.
+    if (-not $global:_ZTrackPath) { Write-ZTrailer -FinalNote $FinalNote; return }
     try { Stop-Transcript | Out-Null } catch {}
     $tp = $global:_ZTrackPath
     $global:_ZTrackPath = $null
@@ -747,4 +768,5 @@ function Stop-ZTracking {
         Add-ZTokensRecord -Lines $lc -Chars $cc -Est $tok
     } catch {}
     Remove-Item -LiteralPath $tp -Force -ErrorAction SilentlyContinue
+    Write-ZTrailer -FinalNote $FinalNote
 }
