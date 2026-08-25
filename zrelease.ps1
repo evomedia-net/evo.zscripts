@@ -40,16 +40,25 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Two blank lines after this script's output, matching every other z-script, so
+# a run is visually separated from the next prompt. Local rather than from
+# ZHelpers: this script is deliberately standalone, so it can run from an
+# extracted release zip with nothing beside it.
+function Write-ZTrailer { Write-Host ""; Write-Host "" }
+
+
 $ReleasesDir = Join-Path $PSScriptRoot "releases"
 $VersionFile = Join-Path $PSScriptRoot "build-version.json"
 
 if (-not (Test-Path -LiteralPath $VersionFile)) {
     Write-Host "ERROR: build-version.json not found. Run 'zversion set v1.0.0.0.0' first." -ForegroundColor Red
+    Write-ZTrailer
     exit 1
 }
 $version = (Get-Content -LiteralPath $VersionFile -Raw -Encoding UTF8 | ConvertFrom-Json).version
 if ($version -notmatch '^v\d+\.\d+\.\d+\.\d+\.\d+$') {
     Write-Host "ERROR: build-version.json holds an invalid version '$version'." -ForegroundColor Red
+    Write-ZTrailer
     exit 1
 }
 
@@ -65,10 +74,12 @@ function Get-Sha256([string]$Path) {
 if ($Verify) {
     if (-not (Test-Path -LiteralPath $zipPath)) {
         Write-Host "ERROR: $zipName not found in releases/." -ForegroundColor Red
+        Write-ZTrailer
         exit 1
     }
     if (-not (Test-Path -LiteralPath $shaPath)) {
         Write-Host "ERROR: $zipName.sha256 not found." -ForegroundColor Red
+        Write-ZTrailer
         exit 1
     }
     $expected = ((Get-Content -LiteralPath $shaPath -Raw) -split '\s+')[0].ToLowerInvariant()
@@ -77,11 +88,11 @@ if ($Verify) {
     Write-Host "=== zrelease (verify) ===" -ForegroundColor Cyan
     if ($actual -eq $expected) {
         Write-Host "  OK - $zipName matches its .sha256." -ForegroundColor Green
-        Write-Host ""
+        Write-ZTrailer
         exit 0
     }
     Write-Host "  FAILED - $zipName does not match its .sha256." -ForegroundColor Red
-    Write-Host ""
+    Write-ZTrailer
     exit 1
 }
 
@@ -91,7 +102,7 @@ if ((Test-Path -LiteralPath $zipPath) -and -not $Force) {
     Write-Host "ERROR: releases/$zipName already exists." -ForegroundColor Red
     Write-Host "  A released version is immutable - bump instead: zversion bump" -ForegroundColor DarkGray
     Write-Host "  (or pass -Force if you are rebuilding one that was never published)" -ForegroundColor DarkGray
-    Write-Host ""
+    Write-ZTrailer
     exit 1
 }
 
@@ -101,7 +112,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "ERROR: checksum verification failed - refusing to package." -ForegroundColor Red
     Write-Host "  Run 'zchecksums' to see what differs, then 'zversion bump' to restamp." -ForegroundColor DarkGray
-    Write-Host ""
+    Write-ZTrailer
     exit 1
 }
 
@@ -142,5 +153,5 @@ Write-Host "  SHA-256: $hash" -ForegroundColor Gray
 Write-Host "  Digest:  releases/$zipName.sha256" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Commit both files - a release lives in the repo under releases/." -ForegroundColor DarkGray
-Write-Host ""
+Write-ZTrailer
 exit 0
