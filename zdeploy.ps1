@@ -256,19 +256,41 @@ function Wait-VerifyApiBuild {
     # no DNS yet, so neither answers even though the app is fine.
     $verifyHost = if ($Proj.deploy -and $Proj.deploy.verifyHost) { $Proj.deploy.verifyHost } else { $Proj.domain }
     if ($verifyHost) { $headers['Host'] = $verifyHost }
+    # Preferred when the project configures it: read the version from a
+    # container ON the shared docker network rather than through the public
+    # proxy. A service that publishes no port cannot be curled from the host
+    # at all, and the proxy answers from whichever vhost matches the Host
+    # header - so a container with no public route gets another site's
+    # version back. See Get-ServerSideVersionCommand.
+    $execCmd = Get-ServerSideVersionCommand -Proj $Proj
+    $useExec = $false
+    if ($execCmd) {
+        $probe = (ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd | Out-String).Trim()
+        if (Get-LabelFromVersionJson $probe) { $useExec = $true }
+    }
+    if ($useExec) {
+        Write-Host "  Asking on server: $($Proj.verify.upstream) (via $($Proj.verify.viaProxy))" -ForegroundColor DarkGray
+    }
+
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
         try {
-            $r = Invoke-RestMethod -Uri "http://$EC2_IP/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-            if ($r -and $r.build_version) {
-                if ([string]$r.build_version -eq $ExpectedLabel) {
-                    Write-Host "  PASS - live build $($r.build_version) matches expected." -ForegroundColor Green
+            if ($useExec) {
+                $raw   = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd
+                $live  = Get-LabelFromVersionJson ($raw | Out-String)
+            } else {
+                $r = Invoke-RestMethod -Uri "http://$EC2_IP/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
+                $live = if ($r -and $r.build_version) { [string]$r.build_version } else { $null }
+            }
+            if ($live) {
+                if ($live -eq $ExpectedLabel) {
+                    Write-Host "  PASS - live build $live matches expected." -ForegroundColor Green
                     return $true
                 }
-                Write-Host "  Live build is $($r.build_version), expected $ExpectedLabel - waiting..." -ForegroundColor DarkYellow
+                Write-Host "  Live build is $live, expected $ExpectedLabel - waiting..." -ForegroundColor DarkYellow
             }
         } catch {
-            Write-Host "  /api/build-version not ready yet - waiting..." -ForegroundColor DarkGray
+            Write-Host "  version endpoint not ready yet - waiting..." -ForegroundColor DarkGray
         }
         Start-Sleep -Seconds 3
     }

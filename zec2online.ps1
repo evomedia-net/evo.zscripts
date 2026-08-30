@@ -86,6 +86,17 @@ function Get-RemoteVersionLabel {
     param($Proj)
     $headers = @{}
     if ($Proj.domain) { $headers['Host'] = $Proj.domain }
+    # Container-side first where the project configures it. A build stamp is
+    # not public on every site, and the proxy answers from whichever vhost
+    # matches the Host header - which is how a check reads another service.
+    $execCmd = Get-ServerSideVersionCommand -Proj $Proj
+    if ($execCmd -and (Test-Path $PemKey)) {
+        try {
+            $raw = ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i $PemKey $SshTarget $execCmd
+            $label = Get-LabelFromVersionJson ($raw | Out-String)
+            if ($label) { return $label }
+        } catch { }
+    }
     try {
         if ($Proj.kind -eq 'vite') {
             $r = Invoke-RestMethod -Uri "http://${HostName}/build-version.json" -Headers $headers -TimeoutSec 10 -ErrorAction Stop

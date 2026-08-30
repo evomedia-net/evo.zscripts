@@ -22,6 +22,11 @@ Start-ZTracking
 
 $cfg = Get-ZConfig
 if (-not $HostName) { $HostName = $cfg.ec2.ip }
+# Needed by the container-side version read below; same names zec2online.ps1
+# uses. Without them that read throws inside its try/catch and falls through
+# silently, which looks identical to a service that cannot be reached.
+$PemKey    = $cfg.ec2.pemKey
+$SshTarget = Get-Ec2Target
 
 if ($Projects.Count -eq 0) {
     Write-Host ""
@@ -98,8 +103,20 @@ function Show-Zec2LiveVersion {
             $r = Invoke-RestMethod -Uri "http://${HostName}/build-version.json" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
             if ($r) { Write-Host "    Live build: $(Get-LabelFromBuildJsonObj $r)" -ForegroundColor Gray }
         } else {
-            $r = Invoke-RestMethod -Uri "http://${HostName}/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-            if ($r -and $r.build_version) { Write-Host "    Live build: $($r.build_version)" -ForegroundColor Gray }
+            # Container-side first where the project configures it: a build
+            # stamp is not public on every site, and asking the proxy answers
+            # from whichever vhost matches the Host header.
+            $execCmd = Get-ServerSideVersionCommand -Proj $Proj
+            $label = $null
+            if ($execCmd -and (Test-Path $PemKey)) {
+                $raw = (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i $PemKey $SshTarget $execCmd | Out-String)
+                $label = Get-LabelFromVersionJson $raw
+            }
+            if (-not $label) {
+                $r = Invoke-RestMethod -Uri "http://${HostName}/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
+                if ($r -and $r.build_version) { $label = [string]$r.build_version }
+            }
+            if ($label) { Write-Host "    Live build: $label" -ForegroundColor Gray }
         }
     } catch {
         Write-Host "    (Could not read live version endpoint - see 'Enabling deploy verification' in README)" -ForegroundColor DarkGray
