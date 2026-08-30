@@ -1,109 +1,128 @@
 {
-  "_comment": "Copy this file to zconfig.json and fill in your values. zconfig.json is gitignored — never commit it.",
-
+  "_comment": "Copy this file to zconfig.json and fill in your values. zconfig.json is gitignored \u2014 never commit it.",
   "ec2": {
-    "ip":        "YOUR_SERVER_IP",
-    "user":      "YOUR_SSH_USER",
-    "pemKey":    "C:\\Users\\YourUser\\.ssh\\YourKey.pem",
+    "ip": "YOUR_SERVER_IP",
+    "user": "YOUR_SSH_USER",
+    "pemKey": "C:\\Users\\YourUser\\.ssh\\YourKey.pem",
     "stackRoot": "/home/YOUR_SSH_USER/stack"
   },
-
   "paths": {
-    "temp":            "C:\\YourRoot\\temp",
-    "backupsLocal":    "C:\\YourRoot\\backups\\projects",
-    "backupsEc2":      "C:\\YourRoot\\backups\\ec2",
-    "scriptsRoot":     "C:\\YourRoot\\zscripts",
+    "temp": "C:\\YourRoot\\temp",
+    "backupsLocal": "C:\\YourRoot\\backups\\projects",
+    "backupsEc2": "C:\\YourRoot\\backups\\ec2",
+    "scriptsRoot": "C:\\YourRoot\\zscripts",
     "oneDriveBackups": ""
   },
-
   "projects": {
-    "_comment": "Rename these keys to your own project names — the key IS the command argument: zstart pyapp, zdeploy viteapp, zbackup nextapp. Add as many projects as you like. Keys starting with _ are ignored.",
-
+    "_comment": "Rename these keys to your own project names \u2014 the key IS the command argument: zstart pyapp, zdeploy viteapp, zbackup nextapp. Add as many projects as you like. Keys starting with _ are ignored.",
     "pyapp": {
-      "label":       "My Python App",
-      "kind":        "python",
-      "localRoot":   "C:\\YourRoot\\pyapp",
+      "label": "My Python App",
+      "kind": "python",
+      "localRoot": "C:\\YourRoot\\pyapp",
       "startModule": "pyapp.main",
       "_startApp_note": "ASGI/FastAPI app? Use \"startApp\": \"app.main:app\" instead of startModule (runs uvicorn --port <dev> --reload).",
-      "install":     "-e .",
-      "ports":       { "dev": 8080 },
-      "domain":      "pyapp.yourdomain.com",
+      "install": "-e .",
+      "ports": {
+        "dev": 8080
+      },
+      "domain": "pyapp.yourdomain.com",
       "start": {
         "_comment": "Optional zstart pre-steps: gitPull runs 'git pull --ff-only' first; env sets variables for the server process.",
         "gitPull": true,
-        "env": { "MYAPP_DEBUG": "1" }
+        "env": {
+          "MYAPP_DEBUG": "1"
+        }
       },
-      "db":          { "user": "pyapp_user", "name": "pyapp_db" },
+      "db": {
+        "user": "pyapp_user",
+        "name": "pyapp_db"
+      },
       "remote": {
-        "path":       "/home/YOUR_SSH_USER/stack/pyapp",
+        "path": "/home/YOUR_SSH_USER/stack/pyapp",
         "composeDir": "/home/YOUR_SSH_USER/stack/pyapp/docker",
         "appService": "app"
       },
       "verify": {
-        "_comment": "Optional: after deploy, curl this ON the server (localhost:port+path) and require the substring. The accurate check for apps not published through the edge proxy.",
+        "_comment": "Optional post-deploy build check. Two ways to reach the app, both ON the server rather than through the public proxy - which answers from whichever vhost matches the Host header, so a container with no public route gets another site's version back. Use port+expect when the app publishes a host port; use viaProxy+upstream when it does not, or when its version endpoint is deliberately not public.",
         "port": 8080,
         "path": "/health",
-        "expect": "\"status\":\"ok\""
+        "expect": "\"status\":\"ok\"",
+        "viaProxy": "edge_proxy_container",
+        "upstream": "app_container:80",
+        "_viaProxy_note": "Runs: docker exec <viaProxy> curl -s http://<upstream><path>. Reads the build from inside the shared docker network, and exercises the real HTTP path - so it proves the app is serving, not just that its database knows a version. Omit both keys to keep the previous behaviour."
       },
       "deploy": {
         "zipName": "PyAppDeploy.zip",
         "gitPull": true,
-        "exclude": ["docs"],
+        "exclude": [
+          "docs"
+        ],
         "_comment": "preserve: server-side files/dirs in the project dir that deploys must never delete (.env* files are always preserved)",
-        "preserve": ["keys", "seed-data"]
+        "preserve": [
+          "keys",
+          "seed-data"
+        ]
       }
     },
-
     "viteapp": {
-      "label":     "My Vite Site",
-      "kind":      "vite",
+      "label": "My Vite Site",
+      "kind": "vite",
       "localRoot": "C:\\YourRoot\\viteapp",
-      "ports":     { "dev": 5173 },
-      "domain":    "www.yourdomain.com",
+      "ports": {
+        "dev": 5173
+      },
+      "domain": "www.yourdomain.com",
       "remote": {
-        "path":          "/home/YOUR_SSH_USER/stack/viteapp",
+        "path": "/home/YOUR_SSH_USER/stack/viteapp",
         "containerName": "viteapp"
       },
-      "deploy": { "zipName": "ViteAppDeploy.zip" }
+      "deploy": {
+        "zipName": "ViteAppDeploy.zip"
+      }
     },
-
     "nextapp": {
-      "label":      "My Next.js App",
-      "kind":       "nextjs",
-      "localRoot":  "C:\\YourRoot\\nextapp",
-      "ports":      { "dev": 4173, "prod": 3000 },
-      "domain":     "app.yourdomain.com",
-      "db":         { "user": "nextapp_user", "name": "nextapp_db" },
+      "label": "My Next.js App",
+      "kind": "nextjs",
+      "localRoot": "C:\\YourRoot\\nextapp",
+      "ports": {
+        "dev": 4173,
+        "prod": 3000
+      },
+      "domain": "app.yourdomain.com",
+      "db": {
+        "user": "nextapp_user",
+        "name": "nextapp_db"
+      },
       "migrations": "prisma",
       "remote": {
-        "path":       "/home/YOUR_SSH_USER/stack/nextapp",
+        "path": "/home/YOUR_SSH_USER/stack/nextapp",
         "appService": "web"
       },
       "verify": {
-        "_comment": "Optional: after deploy, curl this ON the server (localhost:port+path). Add it when compose publishes the app to 127.0.0.1 only, as it usually does behind the edge proxy — probing the public IP on that port can never answer. Redirects are followed, so a Next.js '/' that 307s to '/login' still verifies. Takes precedence over the domain check.",
+        "_comment": "Optional: after deploy, curl this ON the server (localhost:port+path). Add it when compose publishes the app to 127.0.0.1 only, as it usually does behind the edge proxy \u2014 probing the public IP on that port can never answer. Redirects are followed, so a Next.js '/' that 307s to '/login' still verifies. Takes precedence over the domain check.",
         "port": 3000,
         "path": "/",
         "expect": ""
       },
-      "deploy": { "zipName": "NextAppDeploy.zip" }
+      "deploy": {
+        "zipName": "NextAppDeploy.zip"
+      }
     },
-
     "edge": {
-      "label":          "Edge Nginx Proxy",
-      "kind":           "edge",
-      "localRoot":      "C:\\YourRoot\\edge",
+      "label": "Edge Nginx Proxy",
+      "kind": "edge",
+      "localRoot": "C:\\YourRoot\\edge",
       "proxyContainer": "edge_proxy",
-      "certsSource":    "",
+      "certsSource": "",
       "remote": {
         "path": "/home/YOUR_SSH_USER/stack/edge"
       }
     },
-
     "analytics": {
-      "label":     "Analytics (any docker compose app)",
-      "kind":      "docker",
+      "label": "Analytics (any docker compose app)",
+      "kind": "docker",
       "localRoot": "C:\\YourRoot\\analytics",
-      "domain":    "analytics.yourdomain.com",
+      "domain": "analytics.yourdomain.com",
       "remote": {
         "path": "/home/YOUR_SSH_USER/stack/analytics"
       }

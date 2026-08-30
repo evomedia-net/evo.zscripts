@@ -9,6 +9,24 @@ Notable changes to the Evomedia.net Token Savers.
 
 Unreleased
 ----------
+Added
+- Read a live build from inside the docker network, not through the public
+  proxy — zdeploy, zec2 and zec2online now prefer
+  docker exec <viaProxy> curl http://<upstream>/api/build-version when a
+  project sets verify.viaProxy and verify.upstream.
+  Two problems it closes. A build stamp is something many sites
+  deliberately do not serve publicly, and a checker that reads it over the
+  public URL stops working the moment that endpoint is blocked —
+  reporting "unknown", which is indistinguishable from "could not reach
+  it". And the proxy answers from whichever vhost matches the Host header,
+  so a container with no public route was getting another site's version
+  back and failing deploys that had worked.
+  Reading it from a container on the shared network also exercises the
+  real HTTP path, so it proves the app is serving rather than that its
+  database knows a version. Purely additive: projects without those two
+  keys behave exactly as before.
+
+
 Fixed
 - scp no longer receives an ssh-only flag — the stdin-hang fix added
   -n to Get-Ec2SshOpts, and the deploy path splats that same array into

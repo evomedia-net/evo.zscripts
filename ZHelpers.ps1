@@ -321,6 +321,68 @@ function Read-JsonBuildVersion {
     try { return Get-Content -LiteralPath $FilePath -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return $null }
 }
 
+function Get-ServerSideVersionCommand {
+    <#
+    .SYNOPSIS
+        Shell command that reads a project's live build ON the server, or
+        $null when the project has not configured one.
+
+    .DESCRIPTION
+        Reading a live build number through the public proxy only works while
+        that endpoint IS public - and a build stamp is something many sites
+        deliberately do not serve to the world. Blocking it at the proxy
+        without moving the readers first leaves every tool quietly reporting
+        "unknown", which looks identical to "could not reach it".
+
+        Going through the proxy is also how a check reads the WRONG service:
+        the proxy answers from whichever vhost matches the Host header, so a
+        container with no public route gets another site's version back.
+
+        A service reached only on a shared docker network cannot be curled
+        from the host when it publishes no port. It IS reachable by name from
+        another container on that network, which also exercises the real HTTP
+        path - so this proves the app is serving, not merely that its
+        database knows a version.
+
+        Config, on the project's `verify` block:
+
+            "verify": {
+              "path":     "/api/build-version",
+              "viaProxy": "edge_proxy_container",
+              "upstream": "app_container:80"
+            }
+
+        Returns $null when either key is missing, so every project without
+        this config keeps the behaviour it has today.
+    #>
+    param($Proj)
+
+    $v = $Proj.verify
+    if (-not $v) { return $null }
+    if (-not $v.viaProxy -or -not $v.upstream) { return $null }
+    $path = if ($v.path) { [string]$v.path } else { '/api/build-version' }
+    return "sudo docker exec $([string]$v.viaProxy) curl -s -m 8 http://$([string]$v.upstream)$path"
+}
+
+function Get-LabelFromVersionJson {
+    <#
+    .SYNOPSIS
+        The build label out of a version endpoint's JSON text, or $null.
+
+    .DESCRIPTION
+        Apps disagree about the field name - some answer `build_version`,
+        others `version`. Both mean "the build that is live", so both are
+        accepted rather than making an app rename its own field.
+    #>
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+    try { $obj = $Text.Trim() | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+    if ($obj.build_version) { return [string]$obj.build_version }
+    if ($obj.version) { return [string]$obj.version }
+    return $null
+}
+
 function Get-LabelFromBuildJsonObj {
     param($obj)
     if (-not $obj) { return $null }
