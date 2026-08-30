@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.18
+# Version: v1.0.0.0.19
 
 # zstop.ps1 — stop docker compose stacks on the server without removing data or files.
 #
