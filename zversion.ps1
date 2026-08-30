@@ -7,7 +7,7 @@
 #
 # Usage:
 #   zversion                     print the current version
-#   zversion bump                build + 1        (one bump per PR / per defect fix)
+#   zversion bump                build + 1        (one bump per release)
 #   zversion bump-stage alpha    alpha + 1, build -> 0
 #   zversion bump-stage beta     beta  + 1, alpha/build -> 0
 #   zversion bump-stage rc       rc    + 1, beta/alpha/build -> 0
@@ -158,7 +158,7 @@ switch ($Command.ToLowerInvariant().TrimStart('-')) {
         Write-Host ""
         Write-Host "Usage: zversion [get | bump | bump-stage <release|rc|beta|alpha> | set <version>]" -ForegroundColor Yellow
         Write-Host "  Scheme: v{major}.{rc}.{beta}.{alpha}.{build}  (current: $current)" -ForegroundColor Gray
-        Write-Host "  bump        build + 1 - one per PR, one per defect fix" -ForegroundColor Gray
+        Write-Host "  bump        build + 1 - one per release, not one per PR" -ForegroundColor Gray
         Write-Host "  bump-stage  raise a stage; every lower segment resets to 0" -ForegroundColor Gray
         Write-ZTrailer
         exit 1

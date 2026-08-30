@@ -208,7 +208,7 @@ function Wait-VerifyStaticBuild {
     # Expect the COMMITTED stamp, not +1: builds no longer self-bump (a
     # prebuild hook incremented inside the image, so the served version
     # matched no commit and every build dirtied the tree). The counter now
-    # advances deliberately — one version bump per merged PR — so "is the
+    # advances deliberately — one version bump per release — so "is the
     # build I just packed live?" means an exact match.
     $expectedLabel = Get-LabelFromBuildJsonObj $PreZipBuildState
     Write-Host "`n--- [$Key] Live build verification (expect $expectedLabel) ---" -ForegroundColor Cyan

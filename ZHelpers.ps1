@@ -275,8 +275,8 @@ function Invoke-DeployGitPull {
             # each deploy block the next one - the operator had to commit or
             # stash a change they never made. The guard exists to stop
             # unreviewed SOURCE shipping; a stamp the script just wrote is not
-            # that. It is still committed separately, one bump per PR, per the
-            # versioning rule - this only stops it being a gate.
+            # that. It is still committed separately, one bump per release,
+            # per the versioning rule - this only stops it being a gate.
             $deployWritten = @('build-version.json', 'CHANGELOG.md')
             $dirty = $dirty | Where-Object {
                 $path = ($_ -replace '^..\s+', '') -replace '^.*/', ''

@@ -10,6 +10,16 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+### Changed
+- **`zversion bump` is once per *release*, not once per PR** — the usage text
+  and the `bump` help line both said "one per PR, one per defect fix". The
+  build number names something that shipped, so a release carrying five PRs
+  moves it by one; PRs that never shipped on their own were never separate
+  builds. Help text only here, but it is the wording people follow: it stamped
+  a single evo.www release as two builds. The historical entry below, which
+  records what the rule was when `zversion` shipped, is deliberately left as
+  written.
+
 ### Added
 - **Read a live build from inside the docker network, not through the public
   proxy** — `zdeploy`, `zec2` and `zec2online` now prefer
