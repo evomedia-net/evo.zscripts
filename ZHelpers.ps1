@@ -15,8 +15,8 @@ $script:ArchiveExtensions = @(
 # exempt from ArchiveExtensions. A project that vendors a dependency as
 # vendor/*.tgz (common when a bundler cannot resolve `file:` links outside the
 # project root) needs that tarball in the deploy zip - dropping it makes a
-# Dockerfile's `COPY vendor ./vendor` fail at image build, which is a confusing
-# way to discover the archive filter ate a required build input.
+# Dockerfile's `COPY vendor ./vendor` fail at image build, which is a
+# confusing way to discover the archive filter ate a required build input.
 $script:ArchiveKeepDirNames = @('vendor')
 $script:ScriptExtensions = @('.ps1', '.cmd', '.bat')
 $script:JunkExtensions = @(
@@ -42,8 +42,9 @@ $script:JunkDirNames = @(
 $script:ZConfigCache = $null
 
 # Where zconfig.json lives. Defaults to next to the scripts; override with the
-# ZCONFIG environment variable. Useful for pointing a run at an alternate
-# config, and it is the seam the test suite uses to inject a fixture.
+# ZCONFIG environment variable, matching the bash port (zhelpers.sh does the
+# same). Useful for pointing a run at an alternate config, and it is the seam
+# the test suite uses to inject a fixture.
 function Get-ZConfigPath {
     if ($env:ZCONFIG) { return $env:ZCONFIG }
     return (Join-Path $PSScriptRoot "zconfig.json")
@@ -122,18 +123,19 @@ function Get-Ec2Home {
     return "/home/$((Get-ZConfig).ec2.user)"
 }
 
-# Options every deploy-path ssh/scp carries. Splat with @sshOpts.
+# Options every deploy-path ssh/scp carries. Splat with @sshOpts, matching the
+# idiom in zsetup_mail.ps1 and zec2_rotatekeys.ps1.
 #
 # BatchMode=yes is the one that matters. Without it ssh PROMPTS - for a
 # passphrase, a password, a sudo password - and waits forever. The deploy pipes
 # stderr into the pipeline (2>&1 | ForEach-Object) so the prompt is swallowed
 # on its way to the screen: the run simply stops under whatever step label was
 # printed last, with nothing to explain it and no obvious reason why that
-# particular step would be slow. One deploy appeared to hang on "ensure shared
-# web network", a step whose entire body is `docker network create web
+# particular step would be slow. `zdeploy umami` appeared to hang on "ensure
+# shared web network", a step whose entire body is `docker network create web
 # 2>/dev/null || true` against a network that already existed.
 #
-# There is no prompt here you would ever want to answer - a deploy key is
+# There is no prompt here we would ever want to answer - the deploy key is
 # unencrypted and sudo on the box is passwordless - so failing immediately is
 # strictly better than waiting on input that is never coming.
 #
@@ -147,16 +149,16 @@ function Get-Ec2Home {
 # reads its stdin and forwards it to the remote command, and under PowerShell it
 # inherits the console handle - so it can block forever waiting on input nobody
 # is going to type. The timeouts above cannot help: they bound a connection that
-# is dying, and this one was never established. One deploy stopped under
-# "ensure unzip installed", a step whose body short-circuits when unzip is
-# already present; the server showed no ssh session at all (`who` empty, no
-# docker build running), which is what a client-side stdin block looks like
-# from the other end. The zip had uploaded and prod stayed a release behind.
+# is dying, and this one was never established. A deploy on 2026-08-19 stopped
+# under "ensure unzip installed", a step whose body short-circuits on an already
+# installed unzip; the server showed no ssh session at all (`who` empty, no
+# docker build running), which is what a client-side stdin block looks like from
+# the other end. The zip had uploaded and prod stayed a PR behind.
 #
 # Safe here because nothing that pipes stdin INTO ssh uses these options:
-# zdeploy passes only command strings. Any script that DOES pipe into ssh must
-# build its own option array - adding -n to those would break them, so do not
-# hoist this beyond the deploy path.
+# zdeploy passes only command strings, and the scripts that do pipe
+# (one-off registration and key-rotation scripts) build their own
+# option arrays. Adding -n to those would break them - do not hoist it.
 function Get-Ec2SshOpts {
     return @(
         '-n',
@@ -170,9 +172,9 @@ function Get-Ec2SshOpts {
 
 # The same options for scp, which does NOT accept -n: OpenSSH's scp exits 1 with
 # "unknown option -- n" and prints its usage block. That failure is easy to
-# misread, because the caller's own error text is what the operator sees while
-# the usage text scrolls past above it - one deploy reported "Likely server disk
-# space" on a box with plenty of room.
+# misread, because the caller's own error text is what the operator sees and the
+# usage text scrolls past above it - a deploy on 2026-08-19 reported "Likely
+# server disk space" while the box sat at 79% with 8.1 GB free.
 #
 # Derived from Get-Ec2SshOpts rather than duplicated, so the timeouts can never
 # drift apart between the two transports.
@@ -217,11 +219,11 @@ function Invoke-Ec2Step {
 #
 # Deploys ship the default branch, so this SWITCHES to it rather than pulling
 # whatever branch happens to be checked out. The old behaviour pulled the
-# current branch, which breaks as soon as the remote deletes branches on merge:
-# a checkout still sitting on its just-merged PR branch pulls a ref the merge
-# deleted, and the deploy dies on "no such ref was fetched". Worse, when the ref
-# DID still exist, pulling the feature branch meant a deploy could ship a
-# branch rather than the default.
+# current branch, which broke the day delete_branch_on_merge went on
+# fleet-wide (2026-08-07): a repo still sitting on its just-merged PR branch
+# pulls a ref the merge deleted, and the deploy dies on "no such ref was
+# fetched". Worse, when the ref DID still exist, pulling the feature branch
+# meant a deploy could ship a branch, not main.
 #
 # The switch refuses to run over local changes: a dirty tree aborts the deploy
 # with the file list rather than risk tangling uncommitted work. The stale
@@ -328,32 +330,36 @@ function Get-ServerSideVersionCommand {
         $null when the project has not configured one.
 
     .DESCRIPTION
-        Reading a live build number through the public proxy only works while
-        that endpoint IS public - and a build stamp is something many sites
-        deliberately do not serve to the world. Blocking it at the proxy
-        without moving the readers first leaves every tool quietly reporting
-        "unknown", which looks identical to "could not reach it".
+        Four tools read a live build number, and all four did it by asking
+        the public edge: zdeploy's post-deploy check, zec2, zec2online, and
+        bash/zhelpers.sh. That works only for as long as the endpoint is
+        public, and it should not be: www's /build-version.json has been
+        blocked at the edge since the 2026-05-29 security pass, and evo.ehs
+        answering /api/build-version to anyone is the inconsistency this
+        closes.
 
-        Going through the proxy is also how a check reads the WRONG service:
-        the proxy answers from whichever vhost matches the Host header, so a
-        container with no public route gets another site's version back.
+        Going through the edge is also how a check reads the WRONG product.
+        The proxy answers from whichever vhost matches the Host header, so a
+        service with no public route gets somebody else's version back --
+        evo-ai's deploy check compared evo.ehs's build against its own and
+        reported a failure on a deploy that had worked (evo.scripts#101).
 
-        A service reached only on a shared docker network cannot be curled
-        from the host when it publishes no port. It IS reachable by name from
-        another container on that network, which also exercises the real HTTP
-        path - so this proves the app is serving, not merely that its
+        A project reached only on the shared docker network cannot be curled
+        from the host: evoehs_app publishes no port. It IS reachable by name
+        from another container on that network, which also exercises the real
+        HTTP path -- so this proves the app is serving, not merely that its
         database knows a version.
 
         Config, on the project's `verify` block:
 
             "verify": {
               "path":     "/api/build-version",
-              "viaProxy": "edge_proxy_container",
-              "upstream": "app_container:80"
+              "viaProxy": "evo_edge_proxy",
+              "upstream": "evoehs_app:80"
             }
 
         Returns $null when either key is missing, so every project without
-        this config keeps the behaviour it has today.
+        this config keeps exactly the behaviour it has today.
     #>
     param($Proj)
 
@@ -370,9 +376,10 @@ function Get-LabelFromVersionJson {
         The build label out of a version endpoint's JSON text, or $null.
 
     .DESCRIPTION
-        Apps disagree about the field name - some answer `build_version`,
-        others `version`. Both mean "the build that is live", so both are
-        accepted rather than making an app rename its own field.
+        Two field names in the fleet: evo.ehs answers `build_version` on
+        /api/build-version, evo-ai answers `version` on /health. Both mean
+        "the build that is live", so both are accepted rather than making an
+        app rename its own field.
     #>
     param([string]$Text)
 
@@ -831,4 +838,87 @@ function Stop-ZTracking {
     } catch {}
     Remove-Item -LiteralPath $tp -Force -ErrorAction SilentlyContinue
     Write-ZTrailer -FinalNote $FinalNote
+}
+
+# ── Deploy-verification planning (pure; unit-tested in tests/) ──────────────
+
+function Get-VerifyTimeout {
+    <#
+    .SYNOPSIS
+        Seconds the live-build verification may wait, per project.
+
+    .DESCRIPTION
+        verify.timeoutSeconds in zconfig.json lets a project that is slow to
+        BOOT say so, instead of every deploy of it warning on a success. An
+        app that runs database migrations in its entrypoint exceeds a 30s
+        window on every deploy that ships one - and a warning that fires on
+        routine success trains people to ignore the one that matters
+        (evo.scripts#101).
+    #>
+    param($Proj, [int]$DefaultSec)
+    if ($Proj.verify -and $Proj.verify.timeoutSeconds) {
+        return [int]$Proj.verify.timeoutSeconds
+    }
+    return $DefaultSec
+}
+
+function Get-VerifyAttempts {
+    <#
+    .SYNOPSIS
+        The ordered ways to read this project's live build, most-trustworthy
+        first. Pure: config in, plan out - so the ordering rules are testable
+        without ssh.
+
+    .DESCRIPTION
+        Three channels exist, and their order is the whole point (#101):
+
+          exec  - docker-network read via verify.viaProxy/upstream. Cannot
+                  answer from the wrong product, works for apps with no
+                  published port.
+          port  - localhost:<verify.port> on the server. Same-box, still
+                  unambiguous; used only if the body carries a version.
+          edge  - http://<ip> with a Host header. The proxy answers from
+                  whichever vhost MATCHES that header, so without one this
+                  channel can only reach the default vhost - which is a
+                  different product (that is how evo-ai's check once read
+                  evo.ehs's build number). It is therefore included ONLY
+                  when the project has a host to route by, and never
+                  otherwise: no answer at all beats somebody else's answer.
+
+        The caller must walk this list EVERY retry, not once up front: the
+        verification runs while the app is restarting, which is exactly when
+        the good channels are briefly down. Deciding the channel before the
+        wait loop is how the whole window got spent on the worst one.
+    #>
+    param($Proj, [string]$ExecCmd)
+    $attempts = @()
+    if ($ExecCmd) {
+        $attempts += [pscustomobject]@{
+            Kind  = 'exec'
+            Label = "docker network: $($Proj.verify.upstream) (via $($Proj.verify.viaProxy))"
+        }
+    }
+    if ($Proj.verify -and $Proj.verify.port) {
+        $vPath = "/api/build-version"
+        if ($Proj.verify.path) { $vPath = [string]$Proj.verify.path }
+        $attempts += [pscustomobject]@{
+            Kind  = 'port'
+            Port  = [int]$Proj.verify.port
+            Path  = $vPath
+            Label = "server localhost:$($Proj.verify.port)$vPath"
+        }
+    }
+    $verifyHost = $null
+    if ($Proj.deploy -and $Proj.deploy.verifyHost) { $verifyHost = [string]$Proj.deploy.verifyHost }
+    elseif ($Proj.domain) { $verifyHost = [string]$Proj.domain }
+    if ($verifyHost) {
+        $attempts += [pscustomobject]@{
+            Kind       = 'edge'
+            HostHeader = $verifyHost
+            Label      = "edge with Host: $verifyHost"
+        }
+    }
+    # The comma stops PS 5.1 unrolling a one-element array into a bare
+    # object - the same pipeline trap that deadlocked ztests day 2.
+    return ,$attempts
 }
