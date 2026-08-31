@@ -10,6 +10,8 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+## v1.0.0.0.23 - 2026-08-31
+
 ### Changed
 - **Every release since 1.0.0 has its own section again** - 21 entries had
   piled up under `Unreleased` while 22 builds shipped, so this file said

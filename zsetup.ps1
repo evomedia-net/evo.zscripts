@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.22
+# Version: v1.0.0.0.23
 
 # zsetup.ps1 — prepare a project for local dev: create its Python venv and install
 # dependencies (python kind), or run `npm install` (vite/nextjs). Idempotent -
