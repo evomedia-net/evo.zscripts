@@ -1,7 +1,7 @@
 REM Evomedia.net — https://github.com/evomedia-net/evo.zscripts
 REM Created by Kelly Michels · dev@evomedia.net
 REM Licensed under the MIT License. See LICENSE.
-REM Version: v1.0.0.0.22
+REM Version: v1.0.0.0.23
 
 @echo off
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0zversion.ps1" %*
