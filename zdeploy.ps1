@@ -18,12 +18,11 @@
 #   zdeploy all -Note "weekly release"
 #   zdeploy ztokens evo               # refresh token-stats.json, then ship the site with it
 #
-# "ztokens" is an OPTIONAL pseudo-project, not a zconfig entry: it runs
-# `ztokens -Publish` from a sibling ztokens checkout, if you have one, to
-# refresh a token-stats.json a site can chart. With no such checkout the step
-# prints a skip and the rest of the run is unaffected. `all` runs it first
-# automatically; called standalone, list it before a site project (as above) so
-# that project's deploy zip picks up the freshly written file.
+# "ztokens" is a pseudo-project, not a zconfig entry: it runs `ztokens -Publish`
+# from the sibling ztokens repo, refreshing the token-stats.json the public
+# zscripts page charts. `all` runs it first automatically; called standalone,
+# list it before a site project (as above) so that project's deploy zip picks
+# up the freshly written file.
 #
 # Flow (python/vite/nextjs): zip source -> free server disk space -> scp up ->
 # unzip into remote.path (preserving server-side .env* files and anything in
@@ -72,7 +71,7 @@ if ($Projects.Count -eq 0) {
     Write-Host "Usage: zdeploy <project> [<project> ...] | all | ztokens  [-Note `"message`"]" -ForegroundColor Yellow
     Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
     Write-Host "  'all' deploys everything (edge kinds first) and stops at the first failure." -ForegroundColor Gray
-    Write-Host "  'ztokens' refreshes live-usage stats, if a sibling ztokens checkout exists." -ForegroundColor Gray
+    Write-Host "  'ztokens' refreshes the live-usage stats published to the zscripts page." -ForegroundColor Gray
     Stop-ZTracking; exit 1
 }
 
@@ -132,10 +131,12 @@ function Invoke-Ec2PreflightCleanup {
         "echo available_mb=`$avail_mb",
         "if [ `"`$avail_mb`" -lt 1500 ]; then echo 'ERROR: less than 1.5 GB free on /. Grow the root volume or run: sudo docker system prune -af' >&2; exit 11; fi"
     ) -join '; '
-    ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $preflightCmd
-    if ($LASTEXITCODE -ne 0) {
-        throw "Server pre-flight cleanup failed (exit $LASTEXITCODE). Root volume too full (need ~1.5 GB free, ideally 3+)."
-    }
+    # Also through the wrapper (#119): the out-of-space branch above writes its
+    # ERROR to stderr and exits 11, so a bare ssh would surface a
+    # NativeCommandError instead of the actionable message below - exactly when
+    # the operator most needs to be told what to do. -FailHint keeps it.
+    Invoke-Ec2Step "server pre-flight cleanup" $preflightCmd `
+        -FailHint "Root volume too full (need ~1.5 GB free, ideally 3+). Grow it or run: sudo docker system prune -af"
 }
 
 # Post-deploy cleanup: prune build cache and dangling images created during this deploy.
@@ -170,30 +171,96 @@ function Invoke-RemoteUnzip {
     Invoke-Ec2Step "unzip $ZipName" $bash
 }
 
-# ── Operator-file preservation (issue #2) ────────────────────────────────────
+# ── Operator-file preservation (issue #2, hardened in #107) ──────────────────
 # Deploys replace the project directory wholesale, which used to destroy every
 # operator-managed file except ./.env. These helpers preserve all .env* files
 # at the project root PLUS any paths listed in deploy.preserve (files or
 # directories), by tarring them to the home dir before the wipe and extracting
 # them back after the unzip. Server-side copies win over anything shipped in
 # the zip — the same semantics ./.env always had.
+#
+# WHY THE ARCHIVE IS TIMESTAMPED AND NEVER DELETED (#107)
+# -------------------------------------------------------
+# This used to write one fixed preserve_<key>.tgz, and preserve's FIRST action
+# was `rm -f` on it. That is the opposite of safe. The window between
+# `sudo rm -rf` on the project directory and the restore step is the only time
+# the tarball is the sole copy of the production secrets - and an interrupted
+# run (dropped ssh, exit 255) stops exactly there, leaving a perfect backup
+# behind. The next run then deleted that backup before doing anything else,
+# tarred a directory that no longer had the files, and reported success.
+# `2>/dev/null; true` on the tar is what made it silent.
+#
+# That destroyed civilcode's production deploy/.env on 2026-08-30. The site
+# survived only because the running container still held its environment; a
+# restart would have made the loss permanent.
+#
+# So, three independent changes, any one of which would have prevented it:
+#
+#   1. Each run writes its own preserve_<key>_<stamp>.tgz and restore no
+#      longer deletes it. Nothing removes an archive that has not been
+#      superseded - retention below prunes old ones instead.
+#   2. Preserve first extracts any earlier archives with `tar -k`, which fills
+#      in files a previous interrupted run lost WITHOUT overwriting anything
+#      currently on disk. A hand-repaired .env therefore wins over the stale
+#      copy in the archive.
+#   3. Preserve refuses to continue if it captured nothing while an earlier
+#      archive for the same key did have contents. Capturing zero files is
+#      normal for a project with no operator files (edge, gitea, landing) and
+#      catastrophic for one that has them; the prior archive is what tells the
+#      difference.
+#
+# One stamp per zdeploy process, so preserve and restore agree on the filename
+# without threading it through every call site.
+$script:PreserveStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$script:PreserveKeep  = 5
+
+function Get-PreserveTarball {
+    param([string]$Key)
+    "$RemoteHome/preserve_${Key}_$($script:PreserveStamp).tgz"
+}
+
 function Save-OperatorFiles {
     param([string]$Key, $Proj, [string]$RemotePath)
     $paths = @('.env*')
     if ($Proj.deploy -and $Proj.deploy.preserve) { $paths += @($Proj.deploy.preserve) }
     $spec = $paths -join ' '
-    $tarball = "$RemoteHome/preserve_${Key}.tgz"
-    # NOTE: no embedded quotes or $( ) here - PowerShell 5.1 strips embedded
-    # double quotes when passing args to ssh.exe, silently corrupting the
-    # remote command. Globs expand remotely; tar archives whatever exists
-    # and its nonzero exit for missing paths is deliberately swallowed.
-    Invoke-Ec2Step "preserve operator files ($spec)" "rm -f $tarball; cd $RemotePath && tar -czf $tarball $spec 2>/dev/null; true"
+    $tarball = Get-PreserveTarball -Key $Key
+    $list    = $tarball -replace '\.tgz$', '.list'
+    $glob    = "$RemoteHome/preserve_${Key}_*"
+    $drop    = $script:PreserveKeep + 1
+
+    # NOTE: no embedded double quotes or $( ) here - PowerShell 5.1 strips
+    # embedded double quotes when passing args to ssh.exe, silently corrupting
+    # the remote command, and $( ) would be evaluated locally. Remote shell
+    # variables are backtick-escaped so PowerShell leaves them alone. Globs
+    # expand remotely; tar's nonzero exit for missing paths is swallowed, but
+    # an empty capture is NOT (see the guard below).
+    $bash =
+        "cd $RemotePath || exit 9; " +
+        "for t in ${glob}.tgz; do [ -e `$t ] && tar -xzkf `$t -C $RemotePath 2>/dev/null; done; true; " +
+        "tar -czf $tarball $spec 2>/dev/null; " +
+        "tar -tzf $tarball > $list 2>/dev/null; " +
+        "if [ ! -s $list ]; then " +
+          "for p in ${glob}.list; do " +
+            "if [ -s `$p ] && [ `$p != $list ]; then " +
+              "echo PRESERVE CAPTURED NOTHING BUT AN EARLIER ARCHIVE HAS FILES; exit 8; " +
+            "fi; " +
+          "done; " +
+        "fi; " +
+        "ls -1t ${glob}.tgz 2>/dev/null | tail -n +$drop | xargs -r rm -f; " +
+        "ls -1t ${glob}.list 2>/dev/null | tail -n +$drop | xargs -r rm -f; " +
+        "exit 0"
+
+    Invoke-Ec2Step "preserve operator files ($spec)" $bash `
+        -FailHint "Refusing to wipe $RemotePath - see $glob.tgz on the server."
 }
 
 function Restore-OperatorFiles {
     param([string]$Key, [string]$RemotePath)
-    $tarball = "$RemoteHome/preserve_${Key}.tgz"
-    Invoke-Ec2Step "restore operator files" "test -f $tarball && tar -xzf $tarball -C $RemotePath; rm -f $tarball; true"
+    $tarball = Get-PreserveTarball -Key $Key
+    # Overwrites, deliberately: server-side operator files beat whatever the
+    # zip shipped. The archive is left in place - see the header.
+    Invoke-Ec2Step "restore operator files" "test -f $tarball && tar -xzf $tarball -C $RemotePath; true"
 }
 
 # ── Deploy verification (build-version match, not just HTTP 200 — a 200 can be
@@ -247,54 +314,87 @@ function Wait-VerifyStaticBuild {
 function Wait-VerifyApiBuild {
     param([string]$Key, $Proj, [string]$ExpectedLabel, [int]$TimeoutSec = 60)
     Write-Host "`n--- [$Key] Live build verification (expect $ExpectedLabel) ---" -ForegroundColor Cyan
-    $headers = @{}
-    # deploy.verifyHost overrides domain for verification only. The Host header
-    # decides which edge vhost answers, and a project's public host can be
-    # deliberately unroutable while the app is perfectly healthy - that is why
-    # the override exists. Reach for it when a domain is being retired ahead of
-    # its replacement: the old host may be returning 410 while the new one has
-    # no DNS yet, so neither answers even though the app is fine.
-    $verifyHost = if ($Proj.deploy -and $Proj.deploy.verifyHost) { $Proj.deploy.verifyHost } else { $Proj.domain }
-    if ($verifyHost) { $headers['Host'] = $verifyHost }
-    # Preferred when the project configures it: read the version from a
-    # container ON the shared docker network rather than through the public
-    # proxy. A service that publishes no port cannot be curled from the host
-    # at all, and the proxy answers from whichever vhost matches the Host
-    # header - so a container with no public route gets another site's
-    # version back. See Get-ServerSideVersionCommand.
-    $execCmd = Get-ServerSideVersionCommand -Proj $Proj
-    $useExec = $false
-    if ($execCmd) {
-        $probe = (ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd | Out-String).Trim()
-        if (Get-LabelFromVersionJson $probe) { $useExec = $true }
+    # deploy.verifyHost (or domain) decides which edge vhost may be asked;
+    # both are consumed inside Get-VerifyAttempts now, where "no host at all"
+    # excludes the edge channel entirely rather than defaulting to whatever
+    # vhost the proxy serves (#101). verifyHost exists for a domain retired
+    # ahead of its replacement - a takedown once had a project's public host
+    # answering 410 while the app was healthy; no project sets it today.
+    # Every retry walks the channels in trust order - docker-network exec,
+    # then localhost port, then (only with a Host to route by) the edge.
+    # The choice used to be made ONCE, before the loop, by probing each
+    # channel - but the probes ran at the exact moment step [5] had
+    # restarted the app, so both good channels were briefly down and the
+    # whole window was spent on the edge. For a project with no domain that
+    # meant the default vhost: one project's check read a DIFFERENT
+    # project's build number, twice in a single day (#101). Re-resolving per
+    # retry means the right channel is used the moment the app is back.
+    #
+    # The port channel still counts only when the body carries a version:
+    # one project's verify path is a JWKS endpoint - real, healthy, and no
+    # version in it - so it falls through to the edge (it has a domain),
+    # same as it always did.
+    $execCmd  = Get-ServerSideVersionCommand -Proj $Proj
+    $attempts = Get-VerifyAttempts -Proj $Proj -ExecCmd $execCmd
+    $TimeoutSec = Get-VerifyTimeout -Proj $Proj -DefaultSec $TimeoutSec
+    if ($attempts.Count -eq 0) {
+        # No trustworthy channel exists: no viaProxy, no port, no host to
+        # route an edge request by. Asking the edge anyway can only reach
+        # the DEFAULT vhost - a different product - and a check that can
+        # only ever read someone else's number is worse than no check.
+        Write-Host "  SKIPPED: no way to verify this project without reading the wrong vhost - configure verify.viaProxy/port, or a domain (#101)." -ForegroundColor Yellow
+        return $false
     }
-    if ($useExec) {
-        Write-Host "  Asking on server: $($Proj.verify.upstream) (via $($Proj.verify.viaProxy))" -ForegroundColor DarkGray
-    }
+    Write-Host "  Channels, in order: $(($attempts | ForEach-Object { $_.Label }) -join '; ')" -ForegroundColor DarkGray
 
+    $sawVersion = $false
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
-        try {
-            if ($useExec) {
-                $raw   = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd
-                $live  = Get-LabelFromVersionJson ($raw | Out-String)
-            } else {
-                $r = Invoke-RestMethod -Uri "http://$EC2_IP/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-                $live = if ($r -and $r.build_version) { [string]$r.build_version } else { $null }
-            }
-            if ($live) {
-                if ($live -eq $ExpectedLabel) {
-                    Write-Host "  PASS - live build $live matches expected." -ForegroundColor Green
-                    return $true
+        foreach ($attempt in $attempts) {
+            $r = $null
+            try {
+                switch ($attempt.Kind) {
+                    'exec' {
+                        $raw = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd
+                        $r = ($raw | Out-String).Trim() | ConvertFrom-Json -ErrorAction Stop
+                    }
+                    'port' {
+                        $raw = ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "curl -s -m 8 http://localhost:$($attempt.Port)$($attempt.Path)"
+                        $r = ($raw | Out-String).Trim() | ConvertFrom-Json -ErrorAction Stop
+                    }
+                    'edge' {
+                        $edgeHeaders = @{ 'Host' = $attempt.HostHeader }
+                        $r = Invoke-RestMethod -Uri "http://$EC2_IP/api/build-version" -Headers $edgeHeaders -TimeoutSec 10 -ErrorAction Stop
+                    }
                 }
-                Write-Host "  Live build is $live, expected $ExpectedLabel - waiting..." -ForegroundColor DarkYellow
+            } catch {
+                continue  # channel not ready; the next one gets its turn
             }
-        } catch {
-            Write-Host "  version endpoint not ready yet - waiting..." -ForegroundColor DarkGray
+            if ($null -eq $r) { continue }
+            # Two field names in the fleet: some apps answer build_version
+            # on /api/build-version, others answer version on /health. Both
+            # are "the build that is live", so accept either rather than
+            # making every app rename its own field.
+            $live = if ($r.build_version) { [string]$r.build_version } elseif ($r.version) { [string]$r.version } else { $null }
+            if (-not $live) { continue }  # answered, but not about versions (JWKS etc.)
+            $sawVersion = $true
+            if ($live -eq $ExpectedLabel) {
+                Write-Host "  PASS - live build $live matches expected ($($attempt.Label))." -ForegroundColor Green
+                return $true
+            }
+            Write-Host "  Live build is $live via $($attempt.Label), expected $ExpectedLabel - waiting..." -ForegroundColor DarkYellow
+            break  # one wrong-version read this pass is enough; retry after the sleep
         }
         Start-Sleep -Seconds 3
     }
-    Write-Host "  WARNING: live build did not match $ExpectedLabel within ${TimeoutSec}s (a stale build may be cached)." -ForegroundColor Yellow
+    # Say which failure this actually was: a version that never matched is a
+    # stale/failed build; channels that never answered is "could not verify",
+    # and pretending otherwise is how a warning gets ignored.
+    if ($sawVersion) {
+        Write-Host "  WARNING: live build did not match $ExpectedLabel within ${TimeoutSec}s (upload or Docker build may have failed, or a stale build is cached)." -ForegroundColor Yellow
+    } else {
+        Write-Host "  WARNING: could not verify within ${TimeoutSec}s - no channel answered with a version (app may still be starting; raise verify.timeoutSeconds if this project boots slowly)." -ForegroundColor Yellow
+    }
     return $false
 }
 
@@ -435,7 +535,7 @@ function Invoke-PythonDeploy {
             # in the container, is written to .build_version below, and is
             # proven by the /api/build-version check — which is the thing that
             # actually establishes what is deployed.
-            ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "echo '$BuildVersion' | sudo tee $remotePath/.build_version > /dev/null"
+            Invoke-Ec2Step "record the live build number" "echo '$BuildVersion' | sudo tee $remotePath/.build_version > /dev/null"
             $changelogTool = Join-Path $root "scripts\build_changelog_tool.py"
             if (Test-Path -LiteralPath $changelogTool) {
                 if ([string]::IsNullOrWhiteSpace($ChangeNote)) { $ChangeNote = "Build deployed" }
@@ -443,8 +543,18 @@ function Invoke-PythonDeploy {
             }
 
             Write-Host "`n--- [5] Restarting app to pick up new version ---" -ForegroundColor Cyan
-            ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "cd $composeDir && sudo COMPOSE_BAKE=false docker compose restart $appSvc"
-            if ($LASTEXITCODE -ne 0) { throw "App restart after build bump failed (exit $LASTEXITCODE)" }
+            # Through Invoke-Ec2Step, not a bare ssh: `docker compose restart`
+            # writes " Container <name>  Restarting" to STDERR as ordinary
+            # progress, and under ErrorActionPreference='Stop' PS 5.1 turns any
+            # native stderr line into a terminating NativeCommandError whatever
+            # the exit code. That threw here on a deploy that had fully
+            # succeeded - and it threw BEFORE Wait-VerifyApiBuild, so the step
+            # that proves what is actually deployed never ran (#119). The
+            # wrapper flattens stderr and judges by exit code alone, and throws
+            # on non-zero itself, so the hand-written check is gone with it.
+            Invoke-Ec2Step "restart $appSvc to pick up the new build" `
+                "cd $composeDir && sudo COMPOSE_BAKE=false docker compose restart $appSvc" `
+                -FailHint "App restart after the build bump failed."
 
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $BuildVersion -TimeoutSec 30 | Out-Null
         } elseif ($Proj.verify -and $Proj.verify.port) {
@@ -646,7 +756,7 @@ function Invoke-NextDeploy {
         # offline for the whole build - minutes for a Next.js app - and left it
         # offline if the build failed. That is not hypothetical: one deploy
         # stopped the stack, the build did not finish, and the site served 502
-        # for 19 hours with no container running at all. The
+        # for 19 hours with no container at all. The
         # old image keeps serving while the new one builds, so a failed build is
         # now harmless and the outage is the seconds between down and up.
         #
@@ -670,7 +780,7 @@ function Invoke-NextDeploy {
         # here: a compose stack behind the edge proxy usually publishes to
         # 127.0.0.1 only, so that probe can never answer and the old "is the port
         # open in the security group?" warning sent you chasing a firewall rule
-        # for an app that was already up.
+        # for an app that was already up. See issue #28.
         if ($Proj.verify -and $Proj.verify.port) {
             Test-DeployHealth -Key $Key -Proj $Proj -TimeoutSec 60 | Out-Null
         } elseif ($Proj.domain) {
@@ -752,10 +862,11 @@ function Invoke-EdgeDeploy {
     }
 
     # Content subdirectories the proxy serves (fonts/, vendor/, ...) ship too —
-    # only server-side state stays put. Skipping them is how self-hosted assets
-    # silently never reach prod: docker creates empty mount-point dirs and nginx
-    # serves 404s from them, so fonts fall back and vendored JS never loads.
-    $skipDirs = @('nginx-logs', '.git')
+    # only server-side state stays put. Skipping them is how the self-hosted
+    # Chart.js and fonts silently never reached prod (charts rendered blank).
+    # .pytest_cache is a local test artifact, already gitignored; it has no
+    # business on the proxy box and only adds noise to the upload log.
+    $skipDirs = @('nginx-logs', '.git', '.pytest_cache')
     $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
     foreach ($d in $dirs) {
         Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
@@ -781,9 +892,9 @@ function Invoke-EdgeDeploy {
 function Invoke-StaticDeploy {
     param([string]$Key, $Proj)
 
-    # Plain static sites - no build, no container of their own. A shared web
-    # container serves them straight off disk, so shipping the files IS the
-    # deploy: there is nothing to restart afterwards.
+    # Plain static sites - no build, no container of their own. The landing
+    # container serves them straight off disk out of /srv/$host, so shipping
+    # the files IS the deploy: there is nothing to restart afterwards.
     $root       = Join-Path $Proj.localRoot $Proj.siteDir
     $remotePath = $Proj.remote.path
 
@@ -801,11 +912,8 @@ function Invoke-StaticDeploy {
     }
 
     # A large media file uploaded in place is served half-written to anyone who
-    # requests it mid-copy. Ship each directory to a sibling, then swap it in -
-    # the swap is a rename, so the switch is atomic and visitors never see a
-    # partial file.
-    $skipDirs = @($script:JunkDirNames) + @('.github')
-    if ($Proj.deploy -and $Proj.deploy.skipDirs) { $skipDirs += @($Proj.deploy.skipDirs) }
+    # requests it mid-copy. Ship the directory to a sibling, then swap it in.
+    $skipDirs = @('.git', '.pytest_cache', 'node_modules')
     $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
     foreach ($d in $dirs) {
         Write-Host "  >> uploading $($d.Name)/ (recursive, staged)" -ForegroundColor DarkCyan
@@ -870,11 +978,10 @@ function Invoke-DockerDeploy {
     Write-DeployLocation -Proj $Proj
 }
 
-# Pseudo-project "ztokens": not a zconfig entry, no compose stack, and entirely
-# optional. Runs `ztokens -Publish` from a sibling ztokens checkout so a site
-# that charts usage data has something current to ship. Missing checkout, or a
-# failure, warns rather than aborting the rest of the deploy list - it is a
-# nice-to-have refresh, not a deploy step.
+# Pseudo-project "ztokens": not a zconfig entry, no compose stack. Runs
+# `ztokens -Publish` from the sibling ztokens repo so the public zscripts page
+# has current data. A failure here warns rather than aborting the rest of the
+# deploy list - it's a nice-to-have refresh, not a deploy step.
 function Invoke-ZTokensPublish {
     Write-Host "`n=== ztokens: refreshing live-usage stats ===" -ForegroundColor Cyan
     $ztokensScript = Join-Path (Split-Path -Parent $PSScriptRoot) "ztokens\ztokens.ps1"

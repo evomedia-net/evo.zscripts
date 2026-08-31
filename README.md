@@ -378,6 +378,21 @@ Give the project a `verify` block instead, and `zdeploy` checks the app **from t
 
 `port` is the host port the app publishes on the server; `path` defaults to `/`; `expect` is an optional substring the response must contain (an app version string makes this equivalent to build-number verification). Python-kind projects use `verify` automatically when there's no `build_version_tool.py` — and projects with *neither* a `domain` nor a `verify` block are now honestly reported as **NOT verified** instead of green-lighting the proxy's default page.
 
+Two more keys make the check unambiguous and patient:
+
+```json
+"verify": {
+  "port": 8005, "path": "/health",
+  "viaProxy": "my_edge_proxy", "upstream": "myapp_container:8000",
+  "timeoutSeconds": 120
+}
+```
+
+- **`viaProxy` + `upstream`** — read the version **over the docker network**, by exec-ing a curl inside the named container (usually the edge proxy, since it is on every stack's network). This is the most trustworthy channel there is: it cannot answer from the wrong product, and it works for apps that publish no host port at all.
+- **`timeoutSeconds`** — how long verification may wait. An app that runs database migrations in its entrypoint exceeds a 30-second window *on every deploy that ships one*, and a warning that fires on routine success teaches you to ignore the one that matters.
+
+Verification walks its channels in trust order — docker-network `viaProxy`, then `localhost:<port>`, then the edge with the project's own `Host` header — and **re-picks the channel on every retry**. That last part is the point: the check runs while the app is restarting, which is exactly when the good channels are briefly down, and locking the choice in up front is how a whole verification window gets spent asking the wrong thing. A project with no domain is **never** asked for via the edge: without a `Host` header the proxy can only answer from its default vhost — a different product — and no answer beats somebody else's answer.
+
 `zec2` and `zec2online` use these same endpoints to show what's live and flag local/server version drift.
 
 ---

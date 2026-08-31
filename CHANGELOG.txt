@@ -10,6 +10,33 @@ Notable changes to the Evomedia.net Token Savers.
 Unreleased
 ----------
 Changed
+- zdeploy verification picks its channel on every retry, and never asks
+  the bare IP - the check used to choose its channel once, before the wait
+  loop, by probing; the probes raced the app restart the check exists to
+  wait through, so the whole window went to the edge fallback. For a
+  project with no domain that fallback had no Host header, and the proxy
+  can then only answer from its default vhost - a different product: that
+  is how one deploy's check compared another app's build number against
+  its own. Now channels are re-resolved each retry in trust order
+  (docker-network viaProxy -> localhost:<port> -> edge with the project's
+  Host), the edge is skipped entirely when there is no host to route by,
+  and a project with no trustworthy channel is reported as unverifiable
+  instead of guessed at. The final warning also says which failure
+  happened: a version that never matched (stale/failed build) reads
+  differently from channels that never answered (probably still booting).
+  verify.timeoutSeconds joins the config so a project that is slow to
+  boot - e.g. one that runs database migrations in its entrypoint - can
+  widen its own window instead of warning on every routine success.
+- An interrupted deploy can no longer destroy server-side .env files - the
+  preserve/restore of operator files is transactional: the restore comes
+  from a tarball taken before the tree is replaced, so a deploy that dies
+  mid-flight leaves the previous files in place instead of an empty
+  directory.
+- A successful deploy no longer reports failure - docker compose restart
+  writes routine progress to stderr, which PowerShell 5.1 turns into a
+  terminating error under ErrorActionPreference = Stop; four ssh calls
+  bypassed the wrapper that flattens this. All remote steps now run
+  through it and are judged by exit code alone.
 - zversion bump is once per RELEASE, not once per PR - the usage text and
   the bump help line both said "one per PR, one per defect fix". The build
   number names something that shipped, so a release carrying five PRs moves
@@ -20,6 +47,14 @@ Changed
   written.
 
 Added
+- tests/VerifyPlan.Tests.ps1 - the verification channel-selection rules
+  are pure functions in ZHelpers.ps1 (Get-VerifyAttempts,
+  Get-VerifyTimeout) and Pester pins them, including "a project with no
+  domain must never produce an edge attempt" and the PowerShell 5.1
+  one-element-unroll trap.
+- scripts/readme_txt.py and README.txt - a generated plain-text twin of
+  the README for terminals and pagers. README.txt is generated, never
+  edited by hand.
 - Read a live build from inside the docker network, not through the public
   proxy — zdeploy, zec2 and zec2online now prefer
   docker exec <viaProxy> curl http://<upstream>/api/build-version when a
