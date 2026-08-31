@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.20
+# Version: v1.0.0.0.21
 
 # zdeploy.ps1 — deploy any project defined in zconfig.json to the server.
 # Each project runs its own docker compose stack; the handler is picked by the

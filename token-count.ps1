@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.20
+# Version: v1.0.0.0.21
 
 # token-count.ps1 — measure script output volume to estimate AI agent token costs.
 #
