@@ -11,6 +11,30 @@ Notable changes to the Evomedia.net Token Savers.
 ## Unreleased
 
 ### Changed
+- **Every release since 1.0.0 has its own section again** - 21 entries had
+  piled up under `Unreleased` while 22 builds shipped, so this file said
+  nothing had been released since 1.0.0 and a reader at any tag found no
+  section for the version they were holding. Which release carried which
+  entry was derived from git, not guessed: for every line, the commit that
+  introduced it, then the earliest tag containing that commit. No entry text
+  changed - only headings were added and whole entries moved under the
+  release that carried them.
+- **`scripts/readme_txt.py` is now `scripts/plaintext_twins.py` and covers
+  every markdown file that owes a twin**, `CHANGELOG.txt` included. It was
+  kept by hand, so it drifted the moment this file was reorganised. The
+  renderer also drops `<!-- -->` markers, which are invisible in markdown
+  and read as stray punctuation in a text file.
+
+### Fixed
+- **The `--check` that keeps the twins honest is actually run now** -
+  `readme_txt.py` shipped one and its docstring claimed "the test suite runs
+  --check", but nothing invoked it, so a twin could disagree with its
+  markdown indefinitely. `tests/PlainTextTwins.Tests.ps1` runs it, and
+  reports *inconclusive* rather than passing when python is unavailable.
+
+## v1.0.0.0.22 - 2026-08-31
+
+### Changed
 - **The sanitization denylist moved to `tests/sanitization-patterns.psd1`**,
   so the test suite here and the publisher in the private toolkit read one
   list instead of keeping two. They had two, and they disagreed: the
@@ -19,6 +43,18 @@ Notable changes to the Evomedia.net Token Savers.
   names, operator paths. It therefore reported "clean" on files this suite
   rejects. No rule changed; only where they live.
 
+## v1.0.0.0.21 - 2026-08-31
+
+### Added
+- **`tests/VerifyPlan.Tests.ps1`** — the verification channel-selection rules
+  are pure functions in `ZHelpers.ps1` (`Get-VerifyAttempts`,
+  `Get-VerifyTimeout`) and Pester pins them, including "a project with no
+  domain must never produce an edge attempt" and the PowerShell 5.1
+  one-element-unroll trap.
+
+- **`scripts/readme_txt.py` and `README.txt`** — a generated plain-text twin
+  of the README for terminals and pagers. `README.txt` is generated, never
+  edited by hand.
 
 ### Changed
 - **`zdeploy` verification picks its channel on every retry, and never asks
@@ -38,16 +74,22 @@ Notable changes to the Evomedia.net Token Savers.
   config so a project that is slow to boot — e.g. one that runs database
   migrations in its entrypoint — can widen its own window instead of
   warning on every routine success.
+
 - **An interrupted deploy can no longer destroy server-side `.env` files** —
   the preserve/restore of operator files is transactional: the restore comes
   from a tarball taken before the tree is replaced, so a deploy that dies
   mid-flight leaves the previous files in place instead of an empty
   directory.
+
 - **A successful deploy no longer reports failure** — `docker compose
   restart` writes routine progress to stderr, which PowerShell 5.1 turns
   into a terminating error under `$ErrorActionPreference = 'Stop'`; four ssh
   calls bypassed the wrapper that flattens this. All remote steps now run
   through it and are judged by exit code alone.
+
+## v1.0.0.0.20 - 2026-08-30
+
+### Changed
 - **`zversion bump` is once per *release*, not once per PR** — the usage text
   and the `bump` help line both said "one per PR, one per defect fix". The
   build number names something that shipped, so a release carrying five PRs
@@ -57,15 +99,9 @@ Notable changes to the Evomedia.net Token Savers.
   records what the rule was when `zversion` shipped, is deliberately left as
   written.
 
+## v1.0.0.0.19 - 2026-08-30
+
 ### Added
-- **`tests/VerifyPlan.Tests.ps1`** — the verification channel-selection rules
-  are pure functions in `ZHelpers.ps1` (`Get-VerifyAttempts`,
-  `Get-VerifyTimeout`) and Pester pins them, including "a project with no
-  domain must never produce an edge attempt" and the PowerShell 5.1
-  one-element-unroll trap.
-- **`scripts/readme_txt.py` and `README.txt`** — a generated plain-text twin
-  of the README for terminals and pagers. `README.txt` is generated, never
-  edited by hand.
 - **Read a live build from inside the docker network, not through the public
   proxy** — `zdeploy`, `zec2` and `zec2online` now prefer
   `docker exec <viaProxy> curl http://<upstream>/api/build-version` when a
@@ -84,6 +120,7 @@ Notable changes to the Evomedia.net Token Savers.
   knows a version. Purely additive: projects without those two keys behave
   exactly as before.
 
+## v1.0.0.0.14 - 2026-08-20
 
 ### Fixed
 - **`scp` no longer receives an ssh-only flag** — the stdin-hang fix added
@@ -98,6 +135,8 @@ Notable changes to the Evomedia.net Token Savers.
   without checking; it now points at `scp`'s own output, where the real
   diagnosis already was.
 
+## v1.0.0.0.8 - 2026-08-12
+
 ### Fixed
 - **Deploys can no longer hang forever on an ssh prompt** — every
   deploy-path `ssh`/`scp` now carries `BatchMode=yes` plus connect and
@@ -109,16 +148,19 @@ Notable changes to the Evomedia.net Token Savers.
   there is no prompt on this path worth answering. `ServerAlive*` bounds a
   session that dies mid-command (dropped VPN, sleeping laptop, rebooting
   host) to about a minute instead of hanging.
+
 - **Vendored archives survive the archive filter** — files under a
   `vendor/` directory are exempt from the "no archives in the zip" rule.
   A project that vendors a dependency as `vendor/*.tgz` needs it in the
   deploy zip; dropping it makes a Dockerfile's `COPY vendor ./vendor`
   fail at image build, a confusing way to learn the filter ate a build
   input.
+
 - **`unzip` install is idempotent** — the remote step ran
   `apt-get update && apt-get install -y unzip` on every deploy; it now
   checks `command -v unzip` first and skips the apt round-trip when the
   binary is already there.
+
 - **`zdeploy` edge kind now ships asset subdirectories** (#42) — the edge
   deploy uploaded top-level files only, so a project self-hosting assets
   in folders (`fonts/`, `vendor/`) lost them on every deploy: docker
@@ -127,15 +169,8 @@ Notable changes to the Evomedia.net Token Savers.
   loading. Every subdirectory except `nginx-logs/` and `.git/` now ships
   recursively, and the `ensure edge dir` chown is recursive so scp into
   docker-created root-owned dirs cannot fail.
-- **`zdeploy` no longer deletes operator-managed files on deploy** (#2) —
-  the project-directory replacement preserved only `./.env`, silently
-  destroying every other server-side file (`.env.db`, staged signing
-  keys, certs) on every deploy. All `.env*` files at the project root are
-  now preserved by default, plus anything listed in the new
-  `deploy.preserve` array (files or directories); the vite kind, which
-  previously preserved nothing, gets the same protection. Found the hard
-  way: a first production deploy of an auth service wiped its staged DB
-  credentials and RSA signing keys.
+
+## v1.0.0.0.0 - 2026-07-28
 
 ### Added
 - **Versioned releases: `zversion`, `zrelease`, `releases/`** — the toolkit now
@@ -149,6 +184,7 @@ Notable changes to the Evomedia.net Token Savers.
   hash verifies the download, the bundled `CHECKSUMS.txt` verifies the
   extracted contents, so nobody needs to clone the repo to get a verifiable
   copy. Released zips are immutable — `zrelease` refuses to overwrite one.
+
 - **`zchecksums` + `CHECKSUMS.txt`** — a SHA-256 manifest covering every `.ps1`
   and `.cmd`, so a download can be verified before anything is run. `zchecksums`
   checks them; `zchecksums -Update` regenerates after an intentional edit. The
@@ -159,15 +195,18 @@ Notable changes to the Evomedia.net Token Savers.
   It's an integrity check, not a signature — the manifest sits in the same repo
   as the code, so it catches corruption and accidental drift, not a compromised
   repo. A Pester test fails if the manifest ever goes stale.
+
 - **Test suite (Pester)** — the toolkit now has automated coverage of its own
   pure logic: `Get-ArchiveExcludes` (including the deploy-vs-backup rule that
   keeps `.env`/`uploads` out of deploys but *in* backups), config and project
   lookups, `remote.composeDir` fallback, EC2 target composition, and build-label
   formatting. Run with `Invoke-Pester .\tests` (Pester 5+). Verified by mutation
   testing — reintroducing each historical bug turns the suite red.
+
 - **`ZCONFIG` environment variable** — overrides the path to `zconfig.json`, so
   a run can target an alternate config. Also gives the test suite a seam for
   injecting a fixture.
+
 - **`zec2_rotatekeys` — safely rotate/reset server-side secrets** — a new
   tool for when a secret leaks or a deploy overwrites a production `.env`
   with dev values. `-Rotate KEY` regenerates a key **on the server**
@@ -180,10 +219,12 @@ Notable changes to the Evomedia.net Token Savers.
   the container (`up -d --force-recreate`, so the new values actually load —
   a plain restart keeps the old environment). `-WhatIf` previews the plan
   without touching anything.
+
 - **`zkill all`** — `zkill` now accepts `all`, stopping the dev server of
   every project that has a `ports.dev` (edge/docker stacks with no local dev
   server are skipped). Brings it in line with `zdeploy all` / `zbackup all`;
   the one-shot "stop everything I've got running locally".
+
 - **`zdeploy` server-side health verification (`verify` block)** — projects
   not published through the edge proxy can declare
   `"verify": { "port": ..., "path": "/health", "expect": "..." }` and the
@@ -191,16 +232,19 @@ Notable changes to the Evomedia.net Token Savers.
   over SSH) instead of hitting the public IP. Fixes a false PASS where the
   proxy's default vhost answered for apps that never started; projects
   with neither `domain` nor `verify` are now reported as NOT verified.
+
 - **`zdeploy` optional `deploy.gitPull`** — `git pull --ff-only` in the
   project root before zipping. `zdeploy` zips the working tree and doesn't
   otherwise pull, so a checkout left behind `origin` after a merged PR would
   deploy stale code while still bumping the build number — success that
   changes nothing. A failed pull aborts the deploy instead.
+
 - **Per-project `start` config block** — `zstart` honors optional pre-start
   steps from `zconfig.json`: `"gitPull": true` runs `git pull --ff-only` in
   the project root before starting (never boot a stale checkout), and
   `"env": { ... }` sets environment variables for the dev-server process.
   Example added to `zconfig.example.json`.
+
 - **Switch-style argument tolerance** — a leading dash on a project key is
   ignored everywhere (`zdeploy -myapp` == `zdeploy myapp`), for hands that
   grew up on per-project switches.
@@ -211,18 +255,32 @@ Notable changes to the Evomedia.net Token Savers.
   `all` does what bare invocation used to (matching `zdeploy`). The
   scheduled task created by `setup_backup_schedule.ps1` passes `all` —
   re-run it if your task was registered before this change.
+
 - **`zbackup` parses more `DATABASE_URL` styles** — double/single-quoted
   values (Prisma convention), `postgres://` and `postgresql+driver://`
   schemes, and URLs without an explicit port (defaults to 5432) all work;
   previously these skipped the Postgres dump with "Could not parse
   DATABASE_URL".
+
 - **`zkill` / port cleanup kills the whole process tree** — listeners on a
   project's port are now terminated children-first. Auto-reloading servers
   (uvicorn/watchfiles, nodemon) spawn workers that inherit the listening
   socket; killing only the parent left orphans serving stale code.
+
 - **`zbackup` finds `DATABASE_URL` in `backend\.env` too** — projects with a
   frontend/backend split get their Postgres dump bundled without needing a
   root-level `.env`.
+
+### Fixed
+- **`zdeploy` no longer deletes operator-managed files on deploy** (#2) —
+  the project-directory replacement preserved only `./.env`, silently
+  destroying every other server-side file (`.env.db`, staged signing
+  keys, certs) on every deploy. All `.env*` files at the project root are
+  now preserved by default, plus anything listed in the new
+  `deploy.preserve` array (files or directories); the vite kind, which
+  previously preserved nothing, gets the same protection. Found the hard
+  way: a first production deploy of an auth service wiped its staged DB
+  credentials and RSA signing keys.
 
 ## 1.0.0
 
