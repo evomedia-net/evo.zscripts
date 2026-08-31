@@ -10,6 +10,16 @@ Notable changes to the Evomedia.net Token Savers.
 Unreleased
 ----------
 Changed
+- The sanitization denylist moved to tests/sanitization-patterns.psd1, so
+  the test suite here and the publisher in the private toolkit read one
+  list instead of keeping two. They had two, and they disagreed: the
+  publisher's scan looked only for secrets, while these rules are about
+  identity - internal project names, product domains, private-only script
+  names, operator paths. It therefore reported "clean" on files this suite
+  rejects. No rule changed; only where they live.
+
+
+Changed
 - zdeploy verification picks its channel on every retry, and never asks
   the bare IP - the check used to choose its channel once, before the wait
   loop, by probing; the probes raced the app restart the check exists to
