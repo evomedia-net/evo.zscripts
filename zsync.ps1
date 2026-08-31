@@ -1,7 +1,7 @@
 # Evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.21
+# Version: v1.0.0.0.22
 
 # zsync.ps1 — copy new backup files offsite; or build + mirror a vite project's dist.
 #
