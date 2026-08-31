@@ -9,6 +9,17 @@ Notable changes to the Evomedia.net Token Savers.
 
 Unreleased
 ----------
+Fixed
+- The container-side version read no longer races the app's restart. It
+  was gated behind a single probe that ran immediately after the container
+  was restarted, so the probe hit a port that was not listening, the flag
+  stayed false for the whole run, and the check fell back to the public
+  proxy. That answers from whichever vhost matches the Host header, so a
+  deploy that had worked was reported as failing against another service's
+  version. The read is used whenever it is configured now, and the retry
+  loop handles "not up yet", which it already did.
+
+
 Changed
 - zversion bump is once per RELEASE, not once per PR - the usage text and
   the bump help line both said "one per PR, one per defect fix". The build

@@ -263,11 +263,17 @@ function Wait-VerifyApiBuild {
     # header - so a container with no public route gets another site's
     # version back. See Get-ServerSideVersionCommand.
     $execCmd = Get-ServerSideVersionCommand -Proj $Proj
-    $useExec = $false
-    if ($execCmd) {
-        $probe = (ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET $execCmd | Out-String).Trim()
-        if (Get-LabelFromVersionJson $probe) { $useExec = $true }
-    }
+    # No pre-probe. viaProxy/upstream is configured EXPLICITLY to read a
+    # version, so a failure here means "not up yet" - which is what the retry
+    # loop below exists for.
+    #
+    # Gating on one probe made the app's own restart a race, and losing it
+    # was silent AND wrong: this runs right after the container is restarted,
+    # so the probe hit a port that was not listening, $useExec stayed false
+    # for the whole run, and the check fell back to the proxy - which answers
+    # from whichever vhost matches the Host header, i.e. another service's
+    # version. The deploy had worked; only the verification was lying.
+    $useExec = [bool]$execCmd
     if ($useExec) {
         Write-Host "  Asking on server: $($Proj.verify.upstream) (via $($Proj.verify.viaProxy))" -ForegroundColor DarkGray
     }
