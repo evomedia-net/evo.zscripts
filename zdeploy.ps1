@@ -303,11 +303,19 @@ if ($Scan) {
 
     Write-Host ""
     if (-not $Yes) {
-        # Read-Host throws in a -NonInteractive host, and the raw exception
-        # reads as "the scan crashed" rather than "nobody could answer the
-        # question". Caught rather than predicted: [Environment]::UserInteractive
-        # is still $true under -NonInteractive, so asking first does not work -
-        # only attempting it tells the truth. Scheduled tasks land here.
+        # Two different ways a prompt can have nobody to answer it, and they
+        # fail differently:
+        #   - a -NonInteractive host: Read-Host THROWS. Caught below.
+        #   - redirected stdin (a pipe, a scheduled task, powershell.exe launched
+        #     from another shell): Read-Host does NOT throw - it BLOCKS, waiting
+        #     on a pipe that never answers. The first scan run this way sat for
+        #     ten minutes with its table already printed but withheld behind the
+        #     blocked pipeline. [Environment]::UserInteractive is $true in both
+        #     cases, so it cannot be the test; IsInputRedirected can.
+        if ([Console]::IsInputRedirected) {
+            Write-Host "  stdin is not a terminal - cannot prompt. Re-run with -Yes to deploy these $($pending.Count).`n" -ForegroundColor Yellow
+            Stop-ZTracking; exit 0
+        }
         $answer = $null
         try { $answer = Read-Host "  Deploy these $($pending.Count)? [y/N]" }
         catch {
