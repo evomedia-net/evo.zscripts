@@ -349,7 +349,9 @@ function Get-RecordDeployBash {
     param(
         [Parameter(Mandatory)]$Proj,
         [Parameter(Mandatory)][string]$RemotePath,
-        [Parameter(Mandatory)][string]$ZipName
+        # Optional: the edge, static and docker paths upload no zip, so there
+        # is nothing to remove - but they still ship, so they still stamp.
+        [string]$ZipName = ''
     )
     $sha = ''
     $root = $Proj.localRoot
@@ -363,7 +365,8 @@ function Get-RecordDeployBash {
     $cmd = "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $RemotePath/.last_deploy_utc > /dev/null"
     # 40 hex characters, so it needs no quoting in the remote command.
     if ($sha) { $cmd += " && printf '%s' $sha | sudo tee $RemotePath/.last_deploy_sha > /dev/null" }
-    return "$cmd && rm -f $RemoteHome/$ZipName"
+    if ($ZipName) { $cmd += " && rm -f $RemoteHome/$ZipName" }
+    return $cmd
 }
 
 function Get-DeployZipName {
@@ -1151,6 +1154,7 @@ function Invoke-EdgeDeploy {
         Invoke-Ec2Step "edge nginx reload" "sudo docker exec $pc nginx -s reload || true"
     }
     Invoke-Ec2Step "fix nginx-logs permissions (if present)" "if [ -d $remotePath/nginx-logs ]; then sudo chmod 777 $remotePath/nginx-logs; sudo chmod 666 $remotePath/nginx-logs/*.log 2>/dev/null || true; fi"
+    Invoke-Ec2Step "record deploy stamp" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath)
     Write-Host "--- [Done] Edge proxy deploy finished ---" -ForegroundColor Green
 }
 
@@ -1188,6 +1192,7 @@ function Invoke-StaticDeploy {
         Invoke-Ec2Step "swap in $($d.Name)" "rm -rf $remotePath/$($d.Name) && mv $remotePath/.staging-$($d.Name) $remotePath/$($d.Name)"
     }
 
+    Invoke-Ec2Step "record deploy stamp" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath)
     Write-Host "--- [Done] Static site deploy finished ---" -ForegroundColor Green
 }
 
@@ -1239,6 +1244,7 @@ function Invoke-DockerDeploy {
     Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo docker compose up -d"
 
     Invoke-Ec2PostDeployCleanup -Label $Key
+    Invoke-Ec2Step "record deploy stamp" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath)
     Write-Host "`n--- [Done] $($Proj.label) deploy finished ---" -ForegroundColor Green
     Write-DeployLocation -Proj $Proj
 }
