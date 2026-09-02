@@ -9,6 +9,9 @@
 #
 # Usage:
 #   zdeploy <project> [<project> ...] [-Note "message"]
+#   zdeploy -Scan                     # report what is merged but not shipped, then offer to deploy it
+#   zdeploy -s -Yes                   # same, unattended (no confirmation prompt)
+#   zdeploy -s <project> ...          # scan only these
 #   zdeploy all                       # ztokens first, then every project (edge kinds next), stop at first failure
 #   zdeploy ztokens                   # refresh the live-usage stats (see below)
 #
@@ -43,7 +46,13 @@
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Projects = @(),
-    [string]$Note = "Build deployed"
+    [string]$Note = "Build deployed",
+    # -Scan / -s: report which projects have work on the default branch that is
+    # not live yet, then offer to deploy exactly those. See Get-DeployStatus.
+    [Alias('s')][switch]$Scan,
+    # Skip the confirmation prompt after a scan. Needed for unattended runs -
+    # Read-Host has no answer in a non-interactive shell and would throw.
+    [switch]$Yes
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,12 +74,169 @@ if (-not (Test-Path -LiteralPath $TempRoot)) {
     New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
 }
 
+# ── Scan: what is merged but not shipped ─────────────────────────────────────
+# Answers "which projects have work on the default branch that is not live?"
+#
+# WHAT IT COMPARES
+# ----------------
+# Every deploy leaves .last_deploy_sha and .last_deploy_utc in the project's
+# remote path. The SHA is the real answer: deployed commit versus the current
+# default-branch tip, exact regardless of clocks.
+#
+# .last_deploy_sha only exists from this change onward, so a project that has
+# not been deployed since falls back to comparing the tip's COMMIT TIME against
+# the deploy time. That is approximate on purpose and is labelled "~" in the
+# output: commit time is when the work was authored, not when it merged, so a
+# long-lived branch merged today carries an old timestamp and can read as
+# already-shipped. The fallback disappears the first time each project deploys.
+#
+# WHAT IT DOES NOT DO
+# -------------------
+# It does not judge whether the pending commits change anything shippable - a
+# README-only commit still reads as pending. Deploying that is wasteful, not
+# wrong, and the alternative (guessing which paths matter per project kind) is
+# the sort of cleverness that eventually skips a real change.
+function Get-DeployStatus {
+    param([string[]]$Keys)
+
+    $cfgLocal = Get-ZConfig
+    $rows = @()
+
+    # One ssh for every project rather than one each: this is a status read
+    # people will run often, and 15 round trips to answer one question is the
+    # difference between a habit and a chore. No $( ) and no embedded double
+    # quotes - see the note on Invoke-Ec2Step.
+    $parts = @()
+    foreach ($k in $Keys) {
+        $p = $cfgLocal.projects.$k
+        if (-not ($p -and $p.remote -and $p.remote.path)) { continue }
+        $rp = $p.remote.path
+        $parts += "printf '$k\t'; cat $rp/.last_deploy_sha 2>/dev/null | tr -d '\n'; printf '\t'; cat $rp/.last_deploy_utc 2>/dev/null | tr -d '\n'; printf '\n';"
+    }
+    $remote = @{}
+    if ($parts.Count -gt 0) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        # Deliberately not Invoke-Ec2Step: that prints a step header and throws
+        # on failure. A scan wants the output captured, and a box that cannot be
+        # reached should degrade to "unknown" rather than abort the report.
+        $sshOpts = Get-Ec2SshOpts
+        $lines = ssh @sshOpts -i $cfgLocal.ec2.pemKey (Get-Ec2Target) ($parts -join ' ') 2>&1 |
+            ForEach-Object { "$_" }
+        $ErrorActionPreference = $prev
+        foreach ($line in $lines) {
+            $f = $line -split "`t"
+            if ($f.Count -ge 3) { $remote[$f[0]] = @{ Sha = $f[1].Trim(); Utc = $f[2].Trim() } }
+        }
+    }
+
+    foreach ($k in $Keys) {
+        $p = $cfgLocal.projects.$k
+        $row = [ordered]@{ Key = $k; Kind = $p.kind; State = ''; Detail = ''; Ahead = 0 }
+        $root = $p.localRoot
+
+        # Not a test for .git in $root: a localRoot may point INTO a repo
+        # rather than at its top, when the deployable app is a subdirectory of
+        # the checkout. Testing for the folder reported every such project as
+        # having no checkout at all. Let git walk up instead.
+        $isRepo = $false
+        if ($root -and (Test-Path -LiteralPath $root)) {
+            $prev = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            git -C $root rev-parse --is-inside-work-tree 2>$null | Out-Null
+            $isRepo = ($LASTEXITCODE -eq 0)
+            $ErrorActionPreference = $prev
+        }
+        if (-not $isRepo) {
+            $row.State = 'no-repo'; $row.Detail = 'no git checkout'
+            $rows += [pscustomobject]$row; continue
+        }
+
+        Push-Location -LiteralPath $root
+        try {
+            $prev = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            git fetch origin --prune --quiet
+            $default = (git symbolic-ref --short refs/remotes/origin/HEAD 2>$null) -replace '^origin/', ''
+            if (-not $default) { $default = 'main' }
+            $tip = (git rev-parse "origin/$default" 2>$null)
+            $tipUtc = (git show -s --format=%cI "origin/$default" 2>$null)
+            # Same exclusions as the deploy's own guard, or the scan would
+            # report a blocker zdeploy would happily run through: untracked
+            # files ship anyway, and build-version.json / CHANGELOG.md are
+            # written BY a deploy.
+            $dirty = git status --porcelain --untracked-files=no | Where-Object {
+                $name = ($_ -replace '^..\s+', '') -replace '^.*/', ''
+                @('build-version.json', 'CHANGELOG.md') -notcontains $name
+            }
+            $ErrorActionPreference = $prev
+
+            if (-not $tip) { $row.State = 'no-repo'; $row.Detail = "no origin/$default"; $rows += [pscustomobject]$row; continue }
+
+            $r = $remote[$k]
+            if (-not $r) {
+                $row.State = 'unknown'; $row.Detail = 'box unreachable'
+            }
+            elseif ($r.Sha) {
+                if ($r.Sha -eq $tip) { $row.State = 'current'; $row.Detail = $tip.Substring(0, 7) }
+                else {
+                    $row.State = 'PENDING'
+                    $n = (git rev-list --count "$($r.Sha)..origin/$default" 2>$null)
+                    if (-not $n -or $LASTEXITCODE -ne 0) { $n = '?' }   # deployed SHA not in this repo's history
+                    $row.Ahead = $n
+                    $row.Detail = "$n commit(s) since $($r.Sha.Substring(0, [Math]::Min(7, $r.Sha.Length)))"
+                }
+            }
+            elseif (-not $r.Utc) {
+                # NOT pending. No stamp means this project has never been
+                # deployed by a zdeploy that wrote one - which says nothing
+                # about whether it is behind. Calling it pending would have
+                # swept edge, the mail server and monitoring into an unattended
+                # run on no evidence at all, and edge in particular does not
+                # take a speculative deploy well. Deploy it once by name to set
+                # the baseline; every scan after that is exact.
+                $row.State = 'no-stamp'; $row.Detail = 'no deploy stamp - deploy once by name to baseline it'
+            }
+            else {
+                # Timestamp fallback - approximate, flagged with ~.
+                $deployedAt = [datetime]::MinValue
+                $ok = [datetime]::TryParse(($r.Utc -replace ' UTC$', ''), [ref]$deployedAt)
+                $tipAt = [datetime]::MinValue
+                $ok2 = [datetime]::TryParse($tipUtc, [ref]$tipAt)
+                if ($ok -and $ok2 -and $tipAt.ToUniversalTime() -gt $deployedAt) {
+                    $row.State = 'PENDING'
+                    $row.Ahead = '~'
+                    $row.Detail = "~ tip $(($tipAt.ToUniversalTime()).ToString('MM-dd HH:mm')) > deploy $($r.Utc -replace ' UTC$','')"
+                }
+                else {
+                    $row.State = 'current'; $row.Detail = "~ deployed $($r.Utc -replace ' UTC$','')"
+                }
+            }
+
+            if ($dirty -and $row.State -eq 'PENDING') {
+                $row.State = 'BLOCKED'
+                $row.Detail = "$(@($dirty).Count) uncommitted file(s) - deploy would refuse"
+            }
+        }
+        finally { Pop-Location }
+
+        $rows += [pscustomobject]$row
+    }
+    return $rows
+}
+
+# A bare `zdeploy -s` means "look at everything", so it must not fall into the
+# usage block below.
+if ($Scan -and $Projects.Count -eq 0) { $Projects = @(Get-ZProjectKeys) }
+
 if ($Projects.Count -eq 0) {
     $keys = (Get-ZProjectKeys) -join ', '
     Write-Host ""
     Write-Host "Usage: zdeploy <project> [<project> ...] | all | ztokens  [-Note `"message`"]" -ForegroundColor Yellow
     Write-Host "  Projects in zconfig.json: $keys" -ForegroundColor Gray
     Write-Host "  'all' deploys everything (edge kinds first) and stops at the first failure." -ForegroundColor Gray
+    Write-Host "  -Scan / -s reports which projects have merged work that is not live, then offers to deploy just those." -ForegroundColor Gray
+    Write-Host "            Add -Yes to skip the confirmation prompt. Edge still ships first." -ForegroundColor Gray
     Write-Host "  'ztokens' refreshes the live-usage stats published to the zscripts page." -ForegroundColor Gray
     Stop-ZTracking; exit 1
 }
@@ -90,6 +256,72 @@ if ($Projects -contains 'all') {
 # do the risky order, because this sort only ran for 'all'.
 # Order within each group is preserved, so an intentional sequence still holds
 # — notably `zdeploy ztokens evo`, where ztokens must still precede evo.
+# Scan runs BEFORE the edge-first sort below, so whatever it selects still gets
+# ordered by that rule - the proxy ships before the apps behind it, exactly as
+# a hand-typed list would.
+if ($Scan) {
+    Write-Host "`n=== zdeploy -Scan: what is merged but not shipped ===" -ForegroundColor Cyan
+    $status = Get-DeployStatus -Keys @($Projects | Where-Object { $_ -ne 'ztokens' })
+
+    Write-Host ""
+    foreach ($r in $status) {
+        $colour = switch ($r.State) {
+            'PENDING' { 'Yellow' }
+            'BLOCKED' { 'Red' }
+            'no-stamp' { 'DarkYellow' }
+            'current' { 'DarkGray' }
+            default   { 'DarkYellow' }
+        }
+        Write-Host ("  {0,-14} {1,-8} {2,-9} {3}" -f $r.Key, $r.Kind, $r.State, $r.Detail) -ForegroundColor $colour
+    }
+
+    $pending = @($status | Where-Object { $_.State -eq 'PENDING' })
+    $blocked = @($status | Where-Object { $_.State -eq 'BLOCKED' })
+    $unknown = @($status | Where-Object { $_.State -eq 'unknown' })
+    $nostamp = @($status | Where-Object { $_.State -eq 'no-stamp' })
+    Write-Host ""
+    Write-Host ("  {0} pending, {1} blocked, {2} no-stamp, {3} unknown, {4} current" -f `
+        $pending.Count, $blocked.Count, $nostamp.Count, $unknown.Count,
+        @($status | Where-Object { $_.State -eq 'current' }).Count) -ForegroundColor Gray
+
+    if ($blocked.Count -gt 0) {
+        Write-Host "  Blocked projects are NOT deployed - commit or stash them, then re-run." -ForegroundColor Red
+    }
+    if ($nostamp.Count -gt 0) {
+        Write-Host "  No-stamp projects are NOT selected - deploy each once by name to establish a baseline." -ForegroundColor DarkYellow
+    }
+    if ($unknown.Count -gt 0) {
+        # Silence here would read as "nothing to do", which is the one thing an
+        # unreachable box does not mean.
+        Write-Host "  Unknown = the box did not answer for that project; its state is NOT 'current'." -ForegroundColor DarkYellow
+    }
+
+    if ($pending.Count -eq 0) {
+        Write-Host "`n  Nothing to deploy.`n" -ForegroundColor Green
+        Stop-ZTracking; exit 0
+    }
+
+    Write-Host ""
+    if (-not $Yes) {
+        # Read-Host throws in a -NonInteractive host, and the raw exception
+        # reads as "the scan crashed" rather than "nobody could answer the
+        # question". Caught rather than predicted: [Environment]::UserInteractive
+        # is still $true under -NonInteractive, so asking first does not work -
+        # only attempting it tells the truth. Scheduled tasks land here.
+        $answer = $null
+        try { $answer = Read-Host "  Deploy these $($pending.Count)? [y/N]" }
+        catch {
+            Write-Host "  Non-interactive shell - cannot prompt. Re-run with -Yes to deploy these $($pending.Count).`n" -ForegroundColor Yellow
+            Stop-ZTracking; exit 0
+        }
+        if ($answer -notmatch '^(y|yes)$') {
+            Write-Host "  Aborted. Nothing deployed.`n" -ForegroundColor Yellow
+            Stop-ZTracking; exit 0
+        }
+    }
+    $Projects = @($pending | ForEach-Object { $_.Key })
+}
+
 $requested = @($Projects)
 $edgeKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -eq 'edge' })
 $restKeys  = @($Projects | Where-Object { $cfg.projects.$_.kind -ne 'edge' })
@@ -99,6 +331,31 @@ if ($Projects.Count -gt 1) {
     # Say so when the order changed, so the reordering is never silent.
     $note = if (($requested -join ',') -ne ($Projects -join ',')) { "  (edge first)" } else { "" }
     Write-Host "Deploying: $($Projects -join ', ')$note" -ForegroundColor Cyan
+}
+
+# The bash that stamps what just shipped. The timestamp has always been
+# written; the SHA is what lets -Scan answer exactly rather than by clock
+# comparison. Omitted rather than faked when the checkout is not a git repo -
+# scan falls back to the timestamp, and a wrong SHA would be worse than none.
+function Get-RecordDeployBash {
+    param(
+        [Parameter(Mandatory)]$Proj,
+        [Parameter(Mandatory)][string]$RemotePath,
+        [Parameter(Mandatory)][string]$ZipName
+    )
+    $sha = ''
+    $root = $Proj.localRoot
+    if ($root -and (Test-Path -LiteralPath (Join-Path $root '.git'))) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        $sha = (git -C $root rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -ne 0) { $sha = '' }
+        $ErrorActionPreference = $prev
+    }
+    $cmd = "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $RemotePath/.last_deploy_utc > /dev/null"
+    # 40 hex characters, so it needs no quoting in the remote command.
+    if ($sha) { $cmd += " && printf '%s' $sha | sudo tee $RemotePath/.last_deploy_sha > /dev/null" }
+    return "$cmd && rm -f $RemoteHome/$ZipName"
 }
 
 function Get-DeployZipName {
@@ -507,7 +764,7 @@ function Invoke-PythonDeploy {
         Invoke-Ec2Step "require compose directory" "test -d $composeDir"
         Invoke-Ec2Step "docker compose build $appSvc" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose build $appSvc"
         Invoke-Ec2Step "docker compose up -d" "cd $composeDir && sudo COMPOSE_BAKE=false docker compose up -d"
-        Invoke-Ec2Step "record deploy time; remove remote zip" "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $remotePath/.last_deploy_utc > /dev/null && rm -f $RemoteHome/$zipName"
+        Invoke-Ec2Step "record deploy time; remove remote zip" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath -ZipName $zipName)
 
         if ($hasVersionTool) {
             Write-Host "`n--- [4] Incrementing build version ---" -ForegroundColor Cyan
@@ -647,7 +904,7 @@ function Invoke-ViteDeploy {
         if ($edgeProj -and $edgeProj.Config.proxyContainer) {
             Invoke-Ec2Step "reload edge nginx (flush DNS cache for new container IP)" "sudo docker exec $($edgeProj.Config.proxyContainer) nginx -s reload"
         }
-        Invoke-Ec2Step "record deploy time; remove remote zip" "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $remotePath/.last_deploy_utc > /dev/null && rm -f $RemoteHome/$zipName"
+        Invoke-Ec2Step "record deploy time; remove remote zip" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath -ZipName $zipName)
 
         Wait-VerifyStaticBuild -Key $Key -Proj $Proj -PreZipBuildState $preZipBuild
         Invoke-Ec2PostDeployCleanup -Label $Key
@@ -773,7 +1030,7 @@ function Invoke-NextDeploy {
         if ($Proj.migrations -eq "prisma") {
             Invoke-Ec2Step "apply prisma migrations" "cd $composeDir && sudo docker compose exec -T $appSvc npx prisma migrate deploy"
         }
-        Invoke-Ec2Step "record deploy timestamp; remove remote zip" "date -u +'%Y-%m-%d %H:%M:%S UTC' | sudo tee $remotePath/.last_deploy_utc > /dev/null && rm -f $RemoteHome/$zipName"
+        Invoke-Ec2Step "record deploy timestamp; remove remote zip" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath -ZipName $zipName)
 
         Write-Host "`n--- [5] Verifying deployment ---" -ForegroundColor Cyan
         # Same precedence as the python handler. Do NOT probe http://<ec2-ip>:<prod-port>/
