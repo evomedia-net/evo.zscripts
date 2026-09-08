@@ -89,6 +89,25 @@ Describe "public repo carries no private detail" {
         $hits | Should -BeNullOrEmpty -Because "these look like private detail copied in from the internal toolkit:`n$($hits -join "`n")"
     }
 
+    It "catches the current spelling <Sample>" -ForEach @(
+        @{ Rule = 'current product name';     Sample = 'evo.ehs answers build_version' }
+        @{ Rule = 'current product name';     Sample = 'evo-ai answers version on /health' }
+        @{ Rule = 'current product name';     Sample = 'upstream evoehs_app:80' }
+        @{ Rule = 'internal issue reference'; Sample = 'see evo.scripts#101 for the trap' }
+    ) {
+        # The rename went past the old pattern: the dot and the hyphen break
+        # the word and the underscore hides the boundary, so a suite that ran
+        # green was trusted on a tree that named the fleet.
+        $pattern = ($script:Denied | Where-Object { $_.Name -eq $Rule }).Pattern
+        $pattern | Should -Not -BeNullOrEmpty
+        ($Sample -match $pattern) | Should -BeTrue
+    }
+
+    It "still allows this repo's own name" {
+        $pattern = ($script:Denied | Where-Object { $_.Name -eq 'current product name' }).Pattern
+        ('https://github.com/evomedia-net/evo.zscripts' -match $pattern) | Should -BeFalse
+    }
+
     It "still detects a planted violation" {
         # Mutation check. Without this the suite passes just as happily when the
         # patterns are broken as when the repo is clean - the failure mode that

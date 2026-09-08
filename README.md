@@ -91,6 +91,7 @@ Set the `ZCONFIG` environment variable to point at a config somewhere else — h
       "deploy": {
         "zipName": "MyAppDeploy.zip",                 // optional: defaults to <key>Deploy.zip
         "gitPull": true,                              // optional: git pull --ff-only before zipping
+        "tagOnDeploy": false,                         // optional: tag the deployed commit with its build number
         "exclude": ["docs", "big-data-folder"]        // optional: extra top-level dirs/files to skip
       }
     }
@@ -101,9 +102,10 @@ Set the `ZCONFIG` environment variable to point at a config somewhere else — h
 Optional blocks do real work:
 
 - **`install`** — how `zsetup` installs a python project's dependencies into its `.venv`: the pip args, e.g. `"-e ."`, `"-e backend"` (deps in a subfolder), or `"-r requirements.txt"`. Omit it and `zsetup` auto-detects a root `pyproject.toml`/`setup.py` (`-e .`) or `requirements.txt` (`-r requirements.txt`). `zstart` never installs — run `zsetup <key>` once, then `zstart <key>`.
-- **`start`** — pre-start steps for `zstart`: `gitPull: true` runs `git pull --ff-only` in the project root first (never starts a stale checkout), and `env` sets environment variables for the dev-server process (feature flags, reload switches).
+- **`start`** — pre-start steps for `zstart`: `gitPull: true` fast-forwards the checkout from its upstream first, and when it can't — no upstream, diverged history, a remote that wants credentials — says so and starts the server anyway. A pull is never allowed to stand between you and a running dev server (that is `deploy.gitPull`'s job, below, where refusing is correct). `env` sets environment variables for the dev-server process (feature flags, reload switches).
 - **`db`** — deploys wait for `pg_isready` and `zbackup_ec2` pulls a `pg_dump`, both against the compose service named `db`. Omit it and those steps are skipped cleanly.
 - **`deploy.gitPull`** — `git pull --ff-only` in the project root before zipping, so a merged PR actually ships. Since `zdeploy` zips your working tree, a checkout left behind `origin` would otherwise deploy stale code *and still bump the build number* — a silent no-op that looks like success. A failed pull (dirty tree that conflicts, diverged history) aborts the deploy rather than shipping uncertain code.
+- **`deploy.tagOnDeploy`** — after a deploy whose live build number has been *verified*, lay an annotated git tag for that number on the deployed commit and push it. Off by default, and deliberately opt-in: a project that already tags its releases through a pull request must not also collect a tag per deploy, because a release ledger and a deploy counter are two different numbers. Nothing here can fail a deploy — an existing tag is left alone, a failed push leaves the tag local and tells you the command to finish it, and a working tree with uncommitted changes gets a warning that the tagged commit is not everything that shipped.
 - **`migrations": "prisma"`** — runs `npx prisma migrate deploy` inside the app container after each deploy.
 - **Compose service-name conventions** — handlers assume the app service is named `app` (python) or `web` (nextjs) and the database service `db`. Override the app service with `remote.appService`.
 - **Edge extras** — an `edge`-kind project can set `proxyContainer` (the nginx container's name, used for reloads and stale-container cleanup) and `certsSource` (a host path with TLS certs, mounted read-only when validating `nginx.conf`).

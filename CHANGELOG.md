@@ -10,6 +10,32 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+### Added
+- **`zdeploy` can lay the release tag it already knows the number for.**
+  A versioning scheme that asks every release to carry an annotated tag needs
+  something to enforce it, and for a project whose build number lives outside
+  git - in a database, say - nothing did: one project reached thirty-eight
+  builds with four tags, and the missing ones were unrecoverable because the
+  number had never existed anywhere else. With `deploy.tagOnDeploy`, the
+  deployed commit is tagged with its build number and pushed, but only after
+  the live build has been *verified* - a tag is a claim about what is running.
+  Opt-in, because a project that already tags releases through a pull request
+  must not also collect a tag per deploy. It can never fail a deploy: an
+  existing tag is left alone, a failed push keeps the tag local and prints the
+  command to finish it, and a missing repo just says so.
+
+### Fixed
+- **`zstart` no longer aborts on a pull that succeeded.** git reports
+  ordinary fetch progress (`From https://...`) on stderr, and under Windows
+  PowerShell 5.1 the script's `2>&1` turned that into a terminating error -
+  so a pull that had *worked* stopped the dev server from starting, before
+  the script's own "Auto-pull skipped" branch could run. The pull now lives
+  in `Invoke-StartGitPull`, which never throws, never switches branch, and
+  never touches a dirty tree: it fast-forwards when it can, reports when it
+  can't, and `zstart` carries on either way - the opposite failure mode
+  from `Invoke-DeployGitPull`, on purpose. Fourteen tests drive real git
+  under `Stop` on 5.1, the host the defect lives on (#130).
+
 ## v1.0.0.0.23 - 2026-08-31
 
 ### Changed
