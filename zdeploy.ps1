@@ -557,6 +557,10 @@ function Invoke-PythonDeploy {
                 -FailHint "App restart after the build bump failed."
 
             Wait-VerifyApiBuild -Key $Key -Proj $Proj -ExpectedLabel $BuildVersion -TimeoutSec 30 | Out-Null
+
+            # Only now: the tag is a claim about what is RUNNING, so it
+            # is written after the live build has been proven, never before.
+            New-DeployTag -Proj $Proj -Version $BuildVersion -Note $ChangeNote
         } elseif ($Proj.verify -and $Proj.verify.port) {
             Test-DeployHealth -Key $Key -Proj $Proj -TimeoutSec 60 | Out-Null
         } elseif ($Proj.domain) {

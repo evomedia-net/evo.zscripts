@@ -1,4 +1,4 @@
-# Deploy-verification planning (#101).
+# Deploy-verification planning.
 #
 #   Invoke-Pester .\tests
 #
@@ -7,8 +7,8 @@
 # function (Get-VerifyAttempts) and are pinned here, where they can be tested
 # without an EC2 box: a project with no domain must never produce an edge
 # attempt, because an edge request with no Host header can only reach the
-# default vhost - which is a different product. That exact gap read evo.ehs's
-# build number during evo-ai deploys twice on 2026-08-31 alone.
+# default vhost - which is a different product. That exact gap read one
+# product's build number during another's deploys, twice in one day.
 #
 # ZHelpers.ps1 is dot-sourced rather than zdeploy.ps1: zdeploy executes its
 # main flow on load, helpers only define functions.
@@ -35,8 +35,8 @@ Describe "Get-VerifyAttempts" {
         ($attempts | ForEach-Object Kind) | Should -Be @('exec', 'port', 'edge')
     }
 
-    It "never asks the edge for a project with no domain (the #101 trap)" {
-        # The shape that hit #101: viaProxy + port, no domain. The old code
+    It "never asks the edge for a project with no domain (the wrong-vhost trap)" {
+        # The shape that hit it: viaProxy + port, no domain. The old code
         # fell back to the bare IP here and read another product's counter.
         $proj = New-Proj -Verify @{ viaProxy = "evo_edge_proxy"; upstream = "deploy-app-1:8000"; port = 8005; path = "/health" }
         $attempts = Get-VerifyAttempts -Proj $proj -ExecCmd "docker exec ..."

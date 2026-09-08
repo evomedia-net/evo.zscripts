@@ -198,21 +198,15 @@ function Invoke-ProjectStartPrep {
             Write-Host "  env $($item.Name)=$($item.Value)" -ForegroundColor DarkGray
         }
     }
-    if ($Proj.start.gitPull -and (Test-Path (Join-Path $Proj.localRoot ".git"))) {
-        Push-Location -LiteralPath $Proj.localRoot
-        # GIT_TERMINAL_PROMPT=0 so a repo that needs credentials fails fast
-        # instead of blocking the server start on a "Username for ..." prompt.
-        $prev = $env:GIT_TERMINAL_PROMPT; $env:GIT_TERMINAL_PROMPT = "0"
-        try {
-            $pullOut = git pull --ff-only 2>&1
-            $last = ($pullOut | Select-Object -Last 1)
-            Write-Host "  git pull: $last" -ForegroundColor DarkGray
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Auto-pull skipped - starting with the current checkout. (git needs credentials here, or set start.gitPull=false)" -ForegroundColor Yellow
-            }
-        } finally {
-            $env:GIT_TERMINAL_PROMPT = $prev
-            Pop-Location
+    if ($Proj.start.gitPull) {
+        # Never lets a pull stand between the user and a running server: the
+        # helper reports, it does not throw (#130). The inline version this
+        # replaced aborted on git's ordinary stderr progress under Stop.
+        $pull = Invoke-StartGitPull -Root $Proj.localRoot
+        if ($pull.Ok) {
+            Write-Host "  git pull: $($pull.Message)" -ForegroundColor DarkGray
+        } else {
+            Write-Host "  Auto-pull skipped - starting with the current checkout. ($($pull.Message); set start.gitPull=false to stop trying)" -ForegroundColor Yellow
         }
     }
 }

@@ -279,10 +279,9 @@ function Invoke-DeployGitPull {
             # unreviewed SOURCE shipping; a stamp the script just wrote is not
             # that. It is still committed separately, one bump per release,
             # per the versioning rule - this only stops it being a gate.
-            $deployWritten = @('build-version.json', 'CHANGELOG.md')
             $dirty = $dirty | Where-Object {
                 $path = ($_ -replace '^..\s+', '') -replace '^.*/', ''
-                $deployWritten -notcontains $path
+                (Get-DeployStampFiles) -notcontains $path
             }
             if ($dirty) {
                 $files = ($dirty | ForEach-Object { "    $_" }) -join "`n"
@@ -315,6 +314,179 @@ function Invoke-DeployGitPull {
     }
 }
 
+# ── Files the deploy itself writes ──────────────────────────────────────────
+#
+# zdeploy stamps the bumped build version, and appends a changelog line, into
+# the working tree after a successful run. Neither is unreviewed SOURCE, so
+# neither should make a tree look dirty to the guards below - leaving them in
+# scope made each deploy block the next one, over a change the operator never
+# made.
+#
+# One list, because two copies drift: the first copy knew about CHANGELOG.md
+# and not build_changelog.md, which is the name a project's own changelog
+# tool may write.
+function Get-DeployStampFiles {
+    return @('build-version.json', 'CHANGELOG.md', 'build_changelog.md')
+}
+
+# Tracked modifications, minus those stamps. Runs in the CURRENT directory;
+# both callers are inside a Push-Location on the project root.
+function Get-TrackedChangesExcludingStamps {
+    $ErrorActionPreference = 'Continue'
+    $dirty = git status --porcelain --untracked-files=no
+    $stamps = Get-DeployStampFiles
+    return @($dirty | Where-Object {
+        $path = ($_ -replace '^..\s+', '') -replace '^.*/', ''
+        $stamps -notcontains $path
+    })
+}
+
+
+# ── The release tag zdeploy owes the versioning scheme ──────────────────────
+#
+# The scheme says every release lays an annotated tag alongside its version
+# stamp. For a project whose build number lives OUTSIDE git nothing enforced
+# that, and the tag history quietly stopped tracking reality: one project kept
+# its number in a database and reached thirty-eight builds with four tags.
+# Those builds were not recoverable - the number only ever existed in the
+# database - so this stops the bleeding rather than back-filling.
+#
+# Opt-in per project, via deploy.tagOnDeploy. A project that already tags its
+# releases through a pull request must NOT also get a tag per deploy: a
+# git-side release ledger and a container's own deploy counter are two
+# different numbers on purpose.
+#
+# Runs only after the live build has been VERIFIED, and never throws. A deploy
+# that reached production must not be reported as failed because a tag could
+# not be written afterwards.
+function New-DeployTag {
+    param(
+        [Parameter(Mandatory)]$Proj,
+        [Parameter(Mandatory)][string]$Version,
+        [string]$Note = "Build deployed"
+    )
+    if (-not ($Proj.deploy -and $Proj.deploy.tagOnDeploy)) { return }
+    $root = $Proj.localRoot
+    if (-not (Test-Path -LiteralPath (Join-Path $root ".git"))) {
+        Write-Host "  tagOnDeploy is set but '$root' is not a git repo - no tag written." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "`n--- [6] Tagging the deployed commit as $Version ---" -ForegroundColor Cyan
+    Push-Location -LiteralPath $root
+    try {
+        # The same PS 5.1 trap the rest of this file documents: success is
+        # judged by $LASTEXITCODE, and git writes ordinary progress to stderr.
+        $ErrorActionPreference = 'Continue'
+
+        $sha = git rev-parse HEAD
+        if ($LASTEXITCODE -ne 0 -or -not $sha) {
+            Write-Host "  Could not read HEAD - no tag written. The deploy stands." -ForegroundColor Yellow
+            return
+        }
+        $sha = "$sha".Trim()
+        $short = $sha.Substring(0, 7)
+
+        # The zip is taken from the WORKING TREE, so uncommitted changes ship
+        # while the commit this tag names does not contain them. Say so rather
+        # than let a tag quietly claim to describe the build.
+        $dirty = Get-TrackedChangesExcludingStamps
+        if ($dirty.Count -gt 0) {
+            Write-Host "  Working tree has $($dirty.Count) uncommitted change(s): $Version names $short, which is NOT everything that shipped." -ForegroundColor Yellow
+        }
+
+        git rev-parse -q --verify "refs/tags/$Version" *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Tag $Version already exists - left alone." -ForegroundColor DarkYellow
+            return
+        }
+
+        git tag -a $Version -m "$Version - $Note"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  git tag failed - the deploy stands, the tag does not." -ForegroundColor Yellow
+            return
+        }
+        git push origin $Version
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  $Version written locally but the push failed. Push it when you can: git push origin $Version" -ForegroundColor Yellow
+            return
+        }
+        Write-Host "  Tagged $Version at $short and pushed." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "  Tagging failed ($($_.Exception.Message)) - the deploy stands." -ForegroundColor Yellow
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+
+# ── zstart's pull: fast-forward if you can, start regardless ─────────────────
+#
+# The OPPOSITE failure mode from Invoke-DeployGitPull above, on purpose. A
+# deploy that cannot prove it has the default branch must refuse - shipping
+# stale code and still bumping the build is a silent lie. A dev server has no
+# such stake: the person is already at a checkout they chose, often a feature
+# branch, and a pull that cannot complete is information, not a reason to
+# leave them without a server. So this never throws, never switches branch,
+# and never touches a dirty tree - it reports, and zstart carries on.
+#
+# It shares the deploy helper's one hard-won mechanic. Under zstart's
+# $ErrorActionPreference = 'Stop', the previous inline `git pull --ff-only
+# 2>&1` wrapped every stderr line in a terminating ErrorRecord - and git
+# prints ordinary fetch progress ("From https://...") on stderr. A pull that
+# SUCCEEDED aborted the start before its own skip-and-continue branch could
+# run (#130). Success is judged by $LASTEXITCODE, nothing is redirected, and
+# the preference drops to Continue for this function's scope only.
+#
+# Fetch, then merge --ff-only against the branch's upstream, rather than
+# `git pull` - see the FETCH_HEAD race note on Invoke-DeployGitPull.
+function Invoke-StartGitPull {
+    param([Parameter(Mandatory)][string]$Root)
+    $result = [pscustomobject]@{ Ok = $false; Skipped = $false; Message = '' }
+    if (-not (Test-Path -LiteralPath (Join-Path $Root '.git'))) {
+        $result.Skipped = $true
+        $result.Message = "'$Root' is not a git repo"
+        return $result
+    }
+    Push-Location -LiteralPath $Root
+    # GIT_TERMINAL_PROMPT=0 so a repo that needs credentials fails fast
+    # instead of blocking the server start on a "Username for ..." prompt.
+    $prevPrompt = $env:GIT_TERMINAL_PROMPT
+    $env:GIT_TERMINAL_PROMPT = '0'
+    try {
+        $ErrorActionPreference = 'Continue'
+        git fetch origin --prune
+        if ($LASTEXITCODE -ne 0) {
+            $result.Skipped = $true
+            $result.Message = 'git fetch failed - credentials, or the remote'
+            return $result
+        }
+        $branch = git rev-parse --abbrev-ref HEAD
+        $upstream = git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $upstream) {
+            $result.Skipped = $true
+            $result.Message = "'$branch' has no upstream to fast-forward from"
+            return $result
+        }
+        $before = git rev-parse HEAD
+        git merge --ff-only $upstream
+        if ($LASTEXITCODE -ne 0) {
+            $result.Message = "cannot fast-forward '$branch' onto $upstream (diverged, or local changes in the way) - left as is"
+            return $result
+        }
+        $result.Ok = $true
+        $result.Message = if ((git rev-parse HEAD) -eq $before) { 'Already up to date.' }
+                          else { "Now at: $(git log -1 --oneline)" }
+        return $result
+    }
+    finally {
+        $env:GIT_TERMINAL_PROMPT = $prevPrompt
+        Pop-Location
+    }
+}
+
 # ── Build-version helpers ────────────────────────────────────────────────────
 
 function Read-JsonBuildVersion {
@@ -334,18 +506,18 @@ function Get-ServerSideVersionCommand {
         the public edge: zdeploy's post-deploy check, zec2, zec2online, and
         bash/zhelpers.sh. That works only for as long as the endpoint is
         public, and it should not be: www's /build-version.json has been
-        blocked at the edge since the 2026-05-29 security pass, and evo.ehs
+        blocked at the edge since an earlier security pass, and one app
         answering /api/build-version to anyone is the inconsistency this
         closes.
 
         Going through the edge is also how a check reads the WRONG product.
         The proxy answers from whichever vhost matches the Host header, so a
         service with no public route gets somebody else's version back --
-        evo-ai's deploy check compared evo.ehs's build against its own and
-        reported a failure on a deploy that had worked (evo.scripts#101).
+        one project's deploy check compared another project's build against
+        its own and reported a failure on a deploy that had worked.
 
         A project reached only on the shared docker network cannot be curled
-        from the host: evoehs_app publishes no port. It IS reachable by name
+        from the host: an app container that publishes no port. It IS reachable by name
         from another container on that network, which also exercises the real
         HTTP path -- so this proves the app is serving, not merely that its
         database knows a version.
@@ -355,7 +527,7 @@ function Get-ServerSideVersionCommand {
             "verify": {
               "path":     "/api/build-version",
               "viaProxy": "evo_edge_proxy",
-              "upstream": "evoehs_app:80"
+              "upstream": "myapp_app:80"
             }
 
         Returns $null when either key is missing, so every project without
@@ -376,8 +548,8 @@ function Get-LabelFromVersionJson {
         The build label out of a version endpoint's JSON text, or $null.
 
     .DESCRIPTION
-        Two field names in the fleet: evo.ehs answers `build_version` on
-        /api/build-version, evo-ai answers `version` on /health. Both mean
+        Two field names in the fleet: one app answers `build_version` on
+        /api/build-version, another answers `version` on /health. Both mean
         "the build that is live", so both are accepted rather than making an
         app rename its own field.
     #>
@@ -852,8 +1024,7 @@ function Get-VerifyTimeout {
         BOOT say so, instead of every deploy of it warning on a success. An
         app that runs database migrations in its entrypoint exceeds a 30s
         window on every deploy that ships one - and a warning that fires on
-        routine success trains people to ignore the one that matters
-        (evo.scripts#101).
+        routine success trains people to ignore the one that matters.
     #>
     param($Proj, [int]$DefaultSec)
     if ($Proj.verify -and $Proj.verify.timeoutSeconds) {
@@ -870,7 +1041,7 @@ function Get-VerifyAttempts {
         without ssh.
 
     .DESCRIPTION
-        Three channels exist, and their order is the whole point (#101):
+        Three channels exist, and their order is the whole point:
 
           exec  - docker-network read via verify.viaProxy/upstream. Cannot
                   answer from the wrong product, works for apps with no
@@ -880,8 +1051,8 @@ function Get-VerifyAttempts {
           edge  - http://<ip> with a Host header. The proxy answers from
                   whichever vhost MATCHES that header, so without one this
                   channel can only reach the default vhost - which is a
-                  different product (that is how evo-ai's check once read
-                  evo.ehs's build number). It is therefore included ONLY
+                  different product (that is how one project's check once read
+                  another's build number). It is therefore included ONLY
                   when the project has a host to route by, and never
                   otherwise: no answer at all beats somebody else's answer.
 

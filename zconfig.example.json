@@ -54,6 +54,7 @@
       "deploy": {
         "zipName": "PyAppDeploy.zip",
         "gitPull": true,
+        "tagOnDeploy": false,
         "exclude": [
           "docs"
         ],
