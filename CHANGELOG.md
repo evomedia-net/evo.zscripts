@@ -10,6 +10,8 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+## v1.0.0.0.24 - 2026-09-08
+
 ### Added
 - **`zdeploy` can lay the release tag it already knows the number for.**
   A versioning scheme that asks every release to carry an annotated tag needs
@@ -25,6 +27,11 @@ Notable changes to the Evomedia.net Token Savers.
   command to finish it, and a missing repo just says so.
 
 ### Fixed
+- **The mirror stopped publishing current product names.** Its own denylist
+  never saw the current spellings (a dot or hyphen breaks the word, an
+  underscore hides the boundary), so twelve references went out while the
+  suite ran green. The patterns learn the spellings, planted cases prove it,
+  and the references read generically now.
 - **`zstart` no longer aborts on a pull that succeeded.** git reports
   ordinary fetch progress (`From https://...`) on stderr, and under Windows
   PowerShell 5.1 the script's `2>&1` turned that into a terminating error -
