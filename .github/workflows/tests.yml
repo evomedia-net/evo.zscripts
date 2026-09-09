@@ -1,4 +1,4 @@
-# The Pester suite, on every push to main and every PR.
+# The Pester suite, on every push to master and every PR.
 #
 # This repo is one of the twelve on the fleet board
 # (evomedia.net/testsuites.html) and was one of three with no CI at all, so the
@@ -14,7 +14,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 # Read-only: this job builds nothing and publishes nothing, so the default
