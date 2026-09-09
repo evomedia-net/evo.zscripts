@@ -1,0 +1,56 @@
+# The Pester suite, on every push to main and every PR.
+#
+# This repo is one of the twelve on the fleet board
+# (evomedia.net/testsuites.html) and was one of four with no CI at all, so the
+# only thing ever running these tests was a workstation at 04:00. That is a
+# poor place for the only copy of a check to live.
+#
+# windows-latest, not ubuntu, even though Pester runs on Linux: these scripts
+# deploy from a Windows workstation and the suite reads like it - paths,
+# executables, the shell itself. Proving them on Linux would be proving
+# something nobody runs. Windows minutes bill at double, which this suite's
+# size affords.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only: this job builds nothing and publishes nothing, so the default
+# write-capable token is more than it needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      # Actions pinned to a commit, not a moving tag: a tag can be repointed
+      # by whoever owns it, and this token, read-only though it is, still sees
+      # the repository.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Pinned to 5.x: the suite is written against the v5 configuration API
+      # (New-PesterConfiguration), and Windows images still carry a v3 in the
+      # module path that would be picked ahead of it.
+      - name: Install Pester 5
+        shell: powershell
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99 `
+            -Force -SkipPublisherCheck -Scope CurrentUser
+          Import-Module Pester -MinimumVersion 5.5.0
+          (Get-Module Pester).Version.ToString()
+
+      # -CI sets the exit code from the result, which is the whole point here:
+      # Invoke-Pester on its own reports failures and still exits 0, so the
+      # job would go green with a red suite.
+      - name: Tests
+        shell: powershell
+        run: Invoke-Pester -Path tests -CI
