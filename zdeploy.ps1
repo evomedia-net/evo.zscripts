@@ -546,6 +546,16 @@ function Wait-VerifyStaticBuild {
     # advances deliberately — one version bump per release — so "is the
     # build I just packed live?" means an exact match.
     $expectedLabel = Get-LabelFromBuildJsonObj $PreZipBuildState
+    # A stamp we cannot read is not a version to check against. Comparing an
+    # unreadable local label to an unreadable remote one is how a verification
+    # once passed while the container served anything it liked, so refuse to
+    # run rather than run a comparison that cannot fail.
+    if ([string]::IsNullOrWhiteSpace($expectedLabel)) {
+        Write-Host "`n--- [$Key version] NOT VERIFIED - build-version.json is present but unreadable ---" -ForegroundColor Yellow
+        Write-Host "  Got: $(($PreZipBuildState | ConvertTo-Json -Compress -Depth 4))" -ForegroundColor DarkGray
+        Write-Host "  Expected one of: {`"version`":`"v1.0.0.0.0`"} | {major,rc,beta,alpha,build} | {productVersion,buildNumber}" -ForegroundColor DarkGray
+        return
+    }
     Write-Host "`n--- [$Key] Live build verification (expect $expectedLabel) ---" -ForegroundColor Cyan
     $containerName = $Proj.remote.containerName
     $deadline = (Get-Date).AddSeconds(45)
@@ -565,7 +575,7 @@ function Wait-VerifyStaticBuild {
             }
             if ($r) {
                 $remoteLabel = Get-LabelFromBuildJsonObj $r
-                if ($remoteLabel -eq $expectedLabel) {
+                if ($remoteLabel -and $remoteLabel -eq $expectedLabel) {
                     Write-Host "  PASS - live build $remoteLabel matches expected." -ForegroundColor Green
                     return
                 }

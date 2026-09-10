@@ -563,14 +563,50 @@ function Get-LabelFromVersionJson {
 }
 
 function Get-LabelFromBuildJsonObj {
+    <#
+    .SYNOPSIS
+    The build label out of a parsed build-version.json, or $null.
+
+    .DESCRIPTION
+    Three stamp shapes, and this has to read all of them because deploy
+    verification runs BOTH sides through it - the local stamp and the one read
+    back from the running container. A shape it cannot read does not fail
+    loudly; it collapses both sides to the same wrong string and the comparison
+    passes unconditionally, which is worse than having no check at all.
+
+      { "major":1, "rc":0, "beta":0, "alpha":0, "build":98 }   object form
+      { "version": "v1.0.0.0.98" }                             string form
+      { "productVersion": "1.2", "buildNumber": 7 }            legacy form
+
+    The string form is what the versioning scheme specifies and what zbump
+    writes, so it is checked FIRST - a stamp carrying both an explicit version
+    and stray numeric fields means the version it states.
+
+    Earned the hard way: the string form used to fall through to the legacy
+    branch, where productVersion is null ("") and buildNumber is null (0), so
+    EVERY string-form stamp became "v.0". A site verified `expect v.0` against
+    a live `v.0` and reported PASS while serving whatever it liked.
+    #>
     param($obj)
     if (-not $obj) { return $null }
-    # Five-segment scheme: v{major}.{rc}.{beta}.{alpha}.{build}
+
+    # String form: the version is stated, so state it back. Trimmed, and given
+    # the leading v the other branches add, so all three shapes are comparable.
+    if (-not [string]::IsNullOrWhiteSpace([string]$obj.version)) {
+        $v = ([string]$obj.version).Trim()
+        return $(if ($v -match '^[vV]') { 'v' + $v.Substring(1) } else { "v$v" })
+    }
+
+    # Object form: v{major}.{rc}.{beta}.{alpha}.{build}
     if ($null -ne $obj.build -or $null -ne $obj.alpha) {
         $alpha = if ($null -ne $obj.alpha) { [int]$obj.alpha } else { 1 }
         return "v$([int]$obj.major).$([int]$obj.rc).$([int]$obj.beta).$alpha.$([int]$obj.build)"
     }
+
     # Legacy two-part stamp (projects not yet migrated): v{productVersion}.{buildNumber}
+    # Only reached when there is something to build it from; otherwise $null, so
+    # a caller sees "no label" instead of a label that matches everything.
+    if ([string]::IsNullOrWhiteSpace([string]$obj.productVersion) -and $null -eq $obj.buildNumber) { return $null }
     return "v$([string]$obj.productVersion).$([int]$obj.buildNumber)"
 }
 
