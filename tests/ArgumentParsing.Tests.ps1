@@ -73,14 +73,30 @@ BeforeAll {
     $fixture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $script:Install "zconfig.json") -Encoding UTF8
 
     # Run a script in a child process; capture merged output and exit code.
+    #
+    # Memoised on the exact command. Several checks deliberately assert
+    # different things about the SAME invocation - that running bare exits
+    # non-zero, that its usage lists the project keys, and that the usage
+    # never mentions the underscore comment key are three checks of one run.
+    # Starting a Windows PowerShell costs about 1.7 s, so re-running the same
+    # command to ask it a second question is the single most expensive thing
+    # this file does. The scripts reached here either refuse their input or
+    # inspect an unused fixture port, so none of them has a side effect a
+    # second run would reveal.
+    $script:zRuns = @{}
+
     function Invoke-ZScript {
         param([string]$Script, [string[]]$ScriptArgs = @())
+        $key = @($Script) + $ScriptArgs -join "`n"
+        if ($script:zRuns.ContainsKey($key)) { return $script:zRuns[$key] }
         $path = Join-Path $script:Install $Script
         $out = & powershell -NoProfile -ExecutionPolicy Bypass -File $path @ScriptArgs 2>&1 | ForEach-Object { "$_" }
-        return [pscustomobject]@{
+        $result = [pscustomobject]@{
             ExitCode = $LASTEXITCODE
             Output   = ($out -join "`n")
         }
+        $script:zRuns[$key] = $result
+        return $result
     }
 }
 
