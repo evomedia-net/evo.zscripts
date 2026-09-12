@@ -10,6 +10,8 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+## v1.0.0.0.25 - 2026-09-12
+
 ### Added
 
 - **`zmerge`** — merge every pull request across the org that is genuinely
