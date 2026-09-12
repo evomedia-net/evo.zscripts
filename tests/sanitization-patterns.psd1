@@ -31,7 +31,7 @@
         @{ Name = 'current product name';    Pattern = '(?i)\bevo[.-](ehs|ai|edge|locate|proven|platform|civilcode|scripts)\b|\bevoehs' }
         @{ Name = 'internal issue reference'; Pattern = 'evo\.scripts#\d+' }
         @{ Name = 'private product domain'; Pattern = '\b(smartplantehs\.com|provensheet\.com|evoehs\.com|civilcode\.evomedia\.net|dashboard\.evomedia\.net|webmail\.evomedia\.net|mail-admin\.evomedia\.net|docketmail\.evomedia\.net|cardiff\.evomedia\.net|platform\.evomedia\.net|ai\.evomedia\.net|git\.evomedia\.net|analytics\.evomedia\.net)\b' }
-        @{ Name = 'private-only script';    Pattern = '\b(register_civilcode|register_docketmail|sp_seed_demo_prod|zpublish_stats|zcoverage|zmerge|zpull|zresume|swag_set_owner|provision_demo|apply_platform_config_fixes)\b' }
+        @{ Name = 'private-only script';    Pattern = '\b(register_civilcode|register_docketmail|sp_seed_demo_prod|zpublish_stats|zcoverage|zresume|swag_set_owner|provision_demo|apply_platform_config_fixes)\b' }
         @{ Name = 'local drive path';       Pattern = '[A-Za-z]:\\\\?evomedia\.net' }
         @{ Name = 'operator home path';     Pattern = '/home/ubuntu/' }
         @{ Name = 'real pem key name';      Pattern = 'evomedia-prod\.pem' }

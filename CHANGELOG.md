@@ -10,6 +10,29 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+### Added
+
+- **`zmerge`** — merge every pull request across the org that is genuinely
+  ready (`MERGEABLE` / `CLEAN`, not a draft), re-checking each one immediately
+  before and after every merge, because merging into a default branch can
+  conflict a sibling PR in the same repository. Dry run by default;
+  `-Execute` (or `-e`) merges.
+- **`zpull`** — `zmerge`, then `git pull --ff-only` in every checkout the
+  merges affected. Skips a checkout that is dirty or is not on its default
+  branch rather than guessing.
+
+### Changed
+
+- **`-e` is an alias for `-Execute`** on both of the above, the way `-s`
+  already works for `-Scan`.
+- **`zmerge` discovers repositories instead of listing them.** It asked a
+  hand-kept list, which had fallen well behind the org - so a scan covered
+  about half of it and reported "Nothing open to merge" while a ready pull
+  request sat in a repository the list had never heard of. It now asks GitHub,
+  and throws rather than returning an empty list if that fails: a tool that
+  quietly scans nothing prints the same reassuring line as one that scanned
+  everything, and the two must not be confusable.
+
 ## v1.0.0.0.24 - 2026-09-08
 
 ### Added
