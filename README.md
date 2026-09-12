@@ -136,6 +136,8 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zchecksums [-Update]` | Verify every script against `CHECKSUMS.txt` (SHA-256) |
 | `zversion [bump \| bump-stage <s> \| set <v>]` | Show or advance the toolkit version (stamps every header) |
 | `zrelease [-Verify]` | Package the current version as `releases/zscripts-<version>.zip` + `.sha256` |
+| `zmerge [-Execute\|-e]` | Merge every pull request across the org that is genuinely ready |
+| `zpull [-Execute\|-e]` | `zmerge`, then bring every affected local checkout current |
 
 ### Local development
 
