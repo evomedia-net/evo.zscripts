@@ -1,0 +1,68 @@
+# Security
+
+How to report a vulnerability, what to expect, and what is in scope:
+**[the evomedia-net security policy](https://github.com/evomedia-net/.github/blob/main/SECURITY.md)**.
+Short version — email [dev@evomedia.net](mailto:dev@evomedia.net), not a public
+issue.
+
+What follows is particular to this repository, which is unusual in one way
+worth stating plainly.
+
+## This is a mirror, and the interesting bug is a leak
+
+These scripts are published from a private tree. The copy here is sanitised:
+placeholder hosts, example configuration, dummy data. So the most valuable
+thing anyone can report about this repository is not a crash — it is
+**something real that should not be here**:
+
+- a credential, key, token, or private-key block
+- an internal hostname, a product domain, or an operator's path
+- an identifier that names a private project or a private-only script
+
+If you find one, treat it as a live secret and mail
+[dev@evomedia.net](mailto:dev@evomedia.net) rather than opening an issue. A
+public issue about a leaked secret publishes it a second time and pins it to
+the top of the page.
+
+**The automated check is a denylist.** `tests/Sanitization.Tests.ps1` and
+`tests/sanitization-patterns.psd1` hold the patterns this repository must never
+contain, and CI enforces them. A denylist proves the absence of *known*
+patterns, not the absence of secrets — it is a regression net for a specific
+recurring mistake, not a substitute for reading what is published. That is why
+a report here is worth sending even though the tests are green.
+
+## They are automation scripts, so read them before running them
+
+Everything here drives real infrastructure: archives a working tree, uploads
+it, rebuilds containers, restarts services. That is the purpose, and it means
+the ordinary rules for running someone else's shell scripts apply with more
+force than usual.
+
+- **Read a script before the first run**, and run it against something you can
+  afford to break.
+- **Nothing here is a sandbox.** There is no dry-run guarantee unless a script
+  documents one; the flag that exists on one command may not exist on the next.
+- **The configuration is yours.** The example config carries placeholders, and
+  every host, key path and target in it has to be replaced with your own before
+  anything is pointed at real infrastructure.
+- Addresses in examples use the ranges reserved for documentation, and
+  loopback. They are placeholders, not somewhere to send anything.
+
+Scripts that destroy or overwrite state are the ones to read twice. A report
+that one of them does something destructive **without saying so** is a good
+report; a report that a script named after a destructive act performs it is
+not.
+
+## Release integrity
+
+Releases carry checksums. They are an **integrity check, not a signature** —
+they catch a truncated download, a corrupted mirror and an accidental edit,
+and they do not catch a forger, because whoever can change an archive can
+change the manifest that travels with it.
+
+## Not a finding here
+
+- **Placeholder credentials and example configuration.** Fake values are the
+  sanitisation working, not a leak.
+- **The private tree.** Only what is published here is in scope; the internal
+  original is not public and cannot be reviewed.

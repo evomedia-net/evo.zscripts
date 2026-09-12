@@ -38,14 +38,19 @@ Describe "plain-text twins" {
         Test-Path -LiteralPath $script:Generator | Should -BeTrue
     }
 
-    It "every .md that owes a twin has one" {
-        $pairs = Select-String -Path $script:Generator -Pattern '^\s*\("([^"]+\.md)",\s*"([^"]+\.txt)"\),' |
-            ForEach-Object { [pscustomobject]@{ Md = $_.Matches[0].Groups[1].Value; Txt = $_.Matches[0].Groups[2].Value } }
+    # Asks the REPOSITORY what markdown it has, not the generator what it was
+    # told about. Scraping the generator's own list could only ever prove the
+    # list was self-consistent - a document nobody added to it was invisible to
+    # the check, which is how ELEVATOR_PITCH.md and TOKEN_SAVINGS.md sat here
+    # with no twin while this test passed.
+    It "every .md at the repository root has a twin" {
+        $mds = Get-ChildItem -LiteralPath $script:RepoRoot -Filter *.md -File
 
-        $pairs.Count | Should -BeGreaterThan 0 -Because "PAIRS in plaintext_twins.py is what this suite checks"
-        foreach ($p in $pairs) {
-            Test-Path -LiteralPath (Join-Path $script:RepoRoot $p.Md) | Should -BeTrue -Because "$($p.Md) is listed in PAIRS"
-            Test-Path -LiteralPath (Join-Path $script:RepoRoot $p.Txt) | Should -BeTrue -Because "$($p.Md) owes a twin at $($p.Txt)"
+        $mds.Count | Should -BeGreaterThan 0 -Because "the repo documents itself in markdown"
+        foreach ($md in $mds) {
+            $txt = [IO.Path]::ChangeExtension($md.FullName, ".txt")
+            Test-Path -LiteralPath $txt |
+                Should -BeTrue -Because "$($md.Name) owes a twin at $(Split-Path -Leaf $txt)"
         }
     }
 

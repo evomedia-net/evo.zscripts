@@ -28,11 +28,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Every markdown file that owes the repo a plain-text twin.
-PAIRS = (
-    ("README.md", "README.txt"),
-    ("CHANGELOG.md", "CHANGELOG.txt"),
-)
+def pairs() -> tuple[tuple[str, str], ...]:
+    """Every root-level markdown file, with the twin it owes.
+
+    Discovered rather than listed. The list was hand-kept, and two files had
+    quietly outgrown it - ELEVATOR_PITCH.md and TOKEN_SAVINGS.md had no twin
+    at all, because adding a document and remembering to add it here are two
+    separate acts and the second one is the one that gets skipped. Discovery
+    makes them one act.
+    """
+    return tuple((f.name, f.with_suffix(".txt").name) for f in sorted(ROOT.glob("*.md")))
+
+
+#: Kept as a name because the Pester suite reads it to know what to check.
+PAIRS = pairs()
 
 
 def _inline(text: str) -> str:
