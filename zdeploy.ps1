@@ -1254,7 +1254,10 @@ function Invoke-DockerDeploy {
         if ($LASTEXITCODE -ne 0) { throw "SCP failed for $($d.Name) (exit $LASTEXITCODE)" }
     }
 
-    Invoke-Ec2Step "docker compose pull" "cd $remotePath && sudo docker compose pull"
+    # Built here or pulled from a registry - see Get-DockerImageStep for why
+    # a build-from-source stack cannot use `pull` and silently ships nothing.
+    $imageStep = Get-DockerImageStep -Proj $Proj -RemotePath $remotePath
+    Invoke-Ec2Step $imageStep.Label $imageStep.Command
     Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo docker compose up -d"
 
     Invoke-Ec2PostDeployCleanup -Label $Key

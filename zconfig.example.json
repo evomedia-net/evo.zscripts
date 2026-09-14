@@ -122,6 +122,7 @@
     "analytics": {
       "label": "Analytics (any docker compose app)",
       "kind": "docker",
+      "_build_note": "Images pulled from a registry need nothing here. If the image is BUILT from a Dockerfile in this tree, add \"deploy\": { \"build\": true } \u2014 without it a redeploy uploads the new code and restarts the OLD image, and reports success.",
       "localRoot": "C:\\YourRoot\\analytics",
       "domain": "analytics.yourdomain.com",
       "remote": {
