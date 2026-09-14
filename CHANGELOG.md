@@ -10,6 +10,8 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+## v1.0.0.0.26 - 2026-09-14
+
 ### Fixed
 
 - **`zdeploy` on a docker stack built from source shipped nothing after the
