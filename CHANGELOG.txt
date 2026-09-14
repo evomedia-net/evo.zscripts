@@ -10,6 +10,21 @@ Notable changes to the Evomedia.net Token Savers.
 Unreleased
 ----------
 
+Fixed
+-----
+
+- **zdeploy on a docker stack built from source shipped nothing after the
+  first deploy.** The docker kind ran docker compose pull and then
+  docker compose up -d, which is right for a stack of published images and
+  wrong for one built from a Dockerfile in the tree: there is nothing to
+  pull, and up -d builds only when the image is missing. So the first
+  deploy worked and every one after it uploaded the new code, started the old
+  image, and reported success — worse than an error, because the deploy is
+  green and the container is healthy. A project now opts into building with
+  "deploy": { "build": true }, which runs docker compose build --pull so
+  the base image is refreshed at the same time. Stacks that pull are
+  unaffected.
+
 v1.0.0.0.25 - 2026-09-12
 ------------------------
 

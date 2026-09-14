@@ -105,6 +105,33 @@ function Get-ZEdgeProject {
 }
 
 # Remote compose directory for a project: remote.composeDir if set, else remote.path.
+# How a docker stack gets its images: built here, or pulled from a registry.
+#
+# `docker compose pull` is right for a stack of published images and wrong for
+# one built from a Dockerfile in the tree - there is nothing to pull. The trap
+# is what happens next: `docker compose up -d` builds only when the image is
+# MISSING. So the FIRST deploy of a build-from-source stack works, and every
+# one after it uploads the new code, starts the old image, and reports success.
+# That is worse than an error, because nothing looks wrong: the deploy is
+# green, the container is up, and the change simply is not in it.
+#
+# deploy.build opts a project into building instead. --pull refreshes the base
+# image at the same time, so a rebuild also picks up its security updates
+# rather than pinning whatever happened to be on the box the first time.
+function Get-DockerImageStep {
+    param($Proj, [Parameter(Mandatory)][string]$RemotePath)
+    if ($Proj -and $Proj.deploy -and $Proj.deploy.build) {
+        return @{
+            Label   = 'docker compose build'
+            Command = "cd $RemotePath && sudo docker compose build --pull"
+        }
+    }
+    return @{
+        Label   = 'docker compose pull'
+        Command = "cd $RemotePath && sudo docker compose pull"
+    }
+}
+
 function Get-RemoteComposeDir {
     param([Parameter(Mandatory)][string]$Key)
     $proj = Get-ZProject -Key $Key
