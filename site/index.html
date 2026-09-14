@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zscripts — one-word dev commands</title>
+<meta name="description" content="One-word commands for AI-assisted development. Routine start, deploy, and backup chores become scripts — saving tokens and keeping the AI's context window focused on real work.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#2a313c;
+    --fg:#e6edf3; --muted:#9aa7b4; --accent:#4ea1ff; --accent2:#3fb950;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.55;
+       -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:760px;margin:0 auto;padding:64px 24px 80px}
+  .eyebrow{font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:2.6rem;line-height:1.1;margin:.4rem 0 .2rem;font-weight:700}
+  h1 .z{color:var(--accent)}
+  .tag{font-size:1.2rem;color:var(--muted);margin:0 0 2rem}
+  .lead{font-size:1.05rem;color:var(--fg);margin:0 0 2rem}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin:0 0 18px}
+  .card h2{font-size:.95rem;margin:0 0 12px;color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+  pre{margin:0;font-family:var(--mono);font-size:.92rem;overflow-x:auto;color:var(--fg)}
+  pre .c{color:var(--muted)}
+  pre .g{color:var(--accent2)}
+  .cmds{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:.95rem}
+  .cmds code{font-family:var(--mono);color:var(--accent);white-space:nowrap}
+  .cmds span{color:var(--muted)}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+  a.btn{display:inline-block;text-decoration:none;font-weight:600;font-size:.95rem;
+        padding:11px 20px;border-radius:9px;border:1px solid var(--border)}
+  a.primary{background:var(--accent);color:#04121f;border-color:var(--accent)}
+  a.ghost{color:var(--fg)}
+  a.primary:hover{filter:brightness(1.08)}
+  a.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="eyebrow">evomedia.net · developer tools</p>
+    <h1><span class="z">z</span>scripts</h1>
+    <p class="tag">Short, one-word commands for multi-project development.</p>
+
+    <p class="lead">
+      A small suite of PowerShell commands built for AI-assisted
+      development. Routine start / deploy / backup chores become single
+      words a coding agent can run without reasoning through them — which
+      saves tokens, but the real win is keeping the AI's context window
+      focused on the actual work instead of housekeeping.
+    </p>
+
+    <div class="card">
+      <h2>The idea</h2>
+      <pre><span class="c"># every chore the agent doesn't narrate is context kept free</span>
+<span class="g">zstart</span> sp      <span class="c"># launch a project's dev server</span>
+<span class="g">zdeploy</span> sp     <span class="c"># package + ship it</span>
+<span class="g">zbackup</span> all    <span class="c"># snapshot the databases</span></pre>
+    </div>
+
+    <div class="card">
+      <h2>What's in the box</h2>
+      <div class="cmds">
+        <code>zstart</code><span>run a project's dev server locally</span>
+        <code>zdeploy</code><span>build and deploy to the server</span>
+        <code>zbackup</code><span>back up project databases</span>
+        <code>zrestart</code><span>restart a running dev server</span>
+        <code>zkill</code><span>stop a dev server cleanly</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/evomedia-net/evo.zscripts">View on GitHub</a>
+      <a class="btn ghost" href="https://github.com/evomedia-net/evo.zscripts#readme">Read the docs</a>
+    </div>
+
+    <footer>
+      An <a href="https://evomedia.net">evomedia.net</a> project ·
+      open source, sanitized for public use.
+    </footer>
+  </main>
+</body>
+</html>

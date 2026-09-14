@@ -1,0 +1,7 @@
+# zscripts.evomedia.net — the public page for this toolkit.
+#
+# Deliberately the opposite of the candidate pages on this estate
+# (cardiff, opensesame, kelly, unify), which disallow everything. This one
+# is an open-source project page: being found is the point.
+User-agent: *
+Allow: /
