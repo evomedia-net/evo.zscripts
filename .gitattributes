@@ -4,8 +4,18 @@
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
 
-# The checksum manifest must stay LF: `sha256sum -c` treats a trailing CR as
-# part of the filename and reports every entry as missing.
+# Every .txt here is either a generated twin or a manifest, and all of them
+# want LF. plaintext_twins.py writes LF and git stores LF, but without this
+# pin checkout applied core.autocrlf and handed the working tree CRLF - so
+# every regeneration rewrote the file to LF, `git status` reported a change,
+# and `git add` normalized it straight back to nothing (#88). Pinning the
+# checkout makes all three agree.
+*.txt text eol=lf
+
+# Kept explicit even though *.txt already covers it: the checksum manifest
+# must stay LF because `sha256sum -c` treats a trailing CR as part of the
+# filename and reports every entry as missing. That is a broken verification,
+# not a cosmetic diff, and it should not depend on a glob above it.
 CHECKSUMS.txt text eol=lf
 releases/*.sha256 text eol=lf
 
