@@ -22,9 +22,11 @@ Start-ZTracking
 
 $cfg = Get-ZConfig
 if (-not $HostName) { $HostName = $cfg.ec2.ip }
-# Needed by the container-side version read below; same names zec2online.ps1
-# uses. Without them that read throws inside its try/catch and falls through
-# silently, which looks identical to a service that cannot be reached.
+# Needed by the container-side version read below. zec2 had no ssh of its own
+# before that, so the read referenced three variables this script never
+# defined -- and because it sits inside a try/catch, the failure was silent:
+# it fell through to the HTTP call and reported nothing once that endpoint
+# stopped being public. Same names zec2online.ps1 uses.
 $PemKey    = $cfg.ec2.pemKey
 $SshTarget = Get-Ec2Target
 
@@ -103,9 +105,9 @@ function Show-Zec2LiveVersion {
             $r = Invoke-RestMethod -Uri "http://${HostName}/build-version.json" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
             if ($r) { Write-Host "    Live build: $(Get-LabelFromBuildJsonObj $r)" -ForegroundColor Gray }
         } else {
-            # Container-side first where the project configures it: a build
-            # stamp is not public on every site, and asking the proxy answers
-            # from whichever vhost matches the Host header.
+            # Container-side first where the project configures it: the
+            # endpoint is not public on every project, and asking the edge
+            # answers from whichever vhost matches the Host header.
             $execCmd = Get-ServerSideVersionCommand -Proj $Proj
             $label = $null
             if ($execCmd -and (Test-Path $PemKey)) {
