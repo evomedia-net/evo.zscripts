@@ -10,6 +10,16 @@ Notable changes to the Evomedia.net Token Savers.
 
 ## Unreleased
 
+### Changed
+
+- **`zec2` and `zec2online` comments now say what they mean without
+  naming private detail.** The container-side version read is described
+  by what it is - an endpoint that is not public on every project - rather
+  than by a product's own wording, and `zec2` records why it needed its
+  own ssh: the read referenced three variables the script never defined,
+  and because it sits inside a try/catch the failure was silent and looked
+  exactly like a service that could not be reached.
+
 ## v1.0.0.0.26 - 2026-09-14
 
 ### Fixed

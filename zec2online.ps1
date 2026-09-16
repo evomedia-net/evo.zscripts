@@ -86,9 +86,10 @@ function Get-RemoteVersionLabel {
     param($Proj)
     $headers = @{}
     if ($Proj.domain) { $headers['Host'] = $Proj.domain }
-    # Container-side first where the project configures it. A build stamp is
-    # not public on every site, and the proxy answers from whichever vhost
-    # matches the Host header - which is how a check reads another service.
+    # Container-side first where the project configures it. The endpoint is
+    # not public on every project, and the edge answers from whichever vhost
+    # matches the Host header -- which is how a check reads another
+    # product's version.
     $execCmd = Get-ServerSideVersionCommand -Proj $Proj
     if ($execCmd -and (Test-Path $PemKey)) {
         try {
