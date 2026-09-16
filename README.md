@@ -411,6 +411,24 @@ Verification walks its channels in trust order — docker-network `viaProxy`, th
 
 Each release is packaged as a zip in [`releases/`](releases/) — grab the latest `zscripts-v*.zip`, check it, unzip, done:
 
+**Windows · PowerShell** — these commands are a PowerShell toolkit, so this is
+most people's path. `sha256sum` and `unzip` are not Windows commands:
+
+```powershell
+$zip = "zscripts-v1.0.0.0.0.zip"
+(Get-FileHash $zip -Algorithm SHA256).Hash -eq (Get-Content "$zip.sha256").Split()[0]   # True = good
+Expand-Archive $zip -DestinationPath zscripts
+cd zscripts
+.\zchecksums.cmd                                                                        # verify the contents
+```
+
+`Get-FileHash` prints the hash in **upper** case and the `.sha256` file holds it
+in lower — they look different side by side and are not. `-eq` on strings is
+case-insensitive in PowerShell, so the comparison above is right; trust the
+`True`, not your eyes.
+
+**macOS · Linux · Git Bash · WSL**
+
 ```bash
 sha256sum -c zscripts-v1.0.0.0.0.zip.sha256   # verify the download
 unzip zscripts-v1.0.0.0.0.zip -d zscripts     # extract
