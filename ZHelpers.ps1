@@ -1,7 +1,7 @@
 # evomedia.net Token Savers — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.27
+# Version: v1.0.0.0.28
 
 # ZHelpers.ps1 — shared library dot-sourced by every z script. Not run directly.
 

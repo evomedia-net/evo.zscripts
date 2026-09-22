@@ -10,6 +10,8 @@ Notable changes to the evomedia.net Token Savers.
 
 ## Unreleased
 
+## v1.0.0.0.28 - 2026-09-22
+
 ### Changed
 
 - **`zec2` and `zec2online` comments now say what they mean without
