@@ -1176,8 +1176,8 @@ function Invoke-StaticDeploy {
     param([string]$Key, $Proj)
 
     # Plain static sites - no build, no container of their own. The landing
-    # container serves them straight off disk out of /srv/$host, so shipping
-    # the files IS the deploy: there is nothing to restart afterwards.
+    # container serves them straight off disk, one directory per host, so
+    # shipping the files IS the deploy: there is nothing to restart afterwards.
     $root       = Join-Path $Proj.localRoot $Proj.siteDir
     $remotePath = $Proj.remote.path
 
