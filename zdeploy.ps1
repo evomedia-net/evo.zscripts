@@ -1304,22 +1304,35 @@ function Invoke-ZTokensPublish {
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────
 
-foreach ($key in $Projects) {
-    # 'ztokens' matches the tool it runs (ztokens.cmd / ztokens.ps1). The old
-    # singular 'ztoken' still works so existing habits and any script that
-    # already calls it keep running.
-    if ($key -in @('ztokens', 'ztoken')) { Invoke-ZTokensPublish; continue }
-    $proj = Get-ZProject -Key $key
-    Invoke-DeployGitPull -Proj $proj   # no-op unless deploy.gitPull is set
-    switch ([string]$proj.kind) {
-        "python" { Invoke-PythonDeploy -Key $key -Proj $proj -ChangeNote $Note }
-        "vite"   { Invoke-ViteDeploy   -Key $key -Proj $proj -ChangeNote $Note }
-        "nextjs" { Invoke-NextDeploy   -Key $key -Proj $proj -ChangeNote $Note }
-        "edge"   { Invoke-EdgeDeploy   -Key $key -Proj $proj }
-        "docker" { Invoke-DockerDeploy -Key $key -Proj $proj }
-        "static" { Invoke-StaticDeploy -Key $key -Proj $proj }
-        default  { throw "No deploy handler for kind '$($proj.kind)' (project '$key'). Add an Invoke-<Kind>Deploy function in zdeploy.ps1." }
+# pip, uv and docker draw progress bars with box-drawing characters: "━" is
+# the bytes E2 94 81. PowerShell 5.1 decodes a native command's stdout - ssh's,
+# here - with [Console]::OutputEncoding, which on Windows is the OEM code page
+# (437 on this machine), where those three bytes read "Γöü". Forty per bar.
+# Decode the box's output as the UTF-8 it is for the duration of the deploy,
+# and put the console back in the finally so a deploy that throws does not
+# leave the session changed.
+$prevConsoleEncoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+try {
+    foreach ($key in $Projects) {
+        # 'ztokens' matches the tool it runs (ztokens.cmd / ztokens.ps1). The old
+        # singular 'ztoken' still works so existing habits and any script that
+        # already calls it keep running.
+        if ($key -in @('ztokens', 'ztoken')) { Invoke-ZTokensPublish; continue }
+        $proj = Get-ZProject -Key $key
+        Invoke-DeployGitPull -Proj $proj   # no-op unless deploy.gitPull is set
+        switch ([string]$proj.kind) {
+            "python" { Invoke-PythonDeploy -Key $key -Proj $proj -ChangeNote $Note }
+            "vite"   { Invoke-ViteDeploy   -Key $key -Proj $proj -ChangeNote $Note }
+            "nextjs" { Invoke-NextDeploy   -Key $key -Proj $proj -ChangeNote $Note }
+            "edge"   { Invoke-EdgeDeploy   -Key $key -Proj $proj }
+            "docker" { Invoke-DockerDeploy -Key $key -Proj $proj }
+            "static" { Invoke-StaticDeploy -Key $key -Proj $proj }
+            default  { throw "No deploy handler for kind '$($proj.kind)' (project '$key'). Add an Invoke-<Kind>Deploy function in zdeploy.ps1." }
+        }
     }
+} finally {
+    [Console]::OutputEncoding = $prevConsoleEncoding
 }
 # The timestamp goes through Stop-ZTracking as the FinalNote so it lands after
 # the tracking footer and before the trailing blank lines - the last thing on
