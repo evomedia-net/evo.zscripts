@@ -1,0 +1,51 @@
+# Re-runs a test run once when one of its jobs ran out of time
+# (evo.testsuites#25, part 2).
+#
+# A timeout usually means a stuck runner or a network stall rather than a
+# broken test, so the first one gets a second chance. A second timeout stays
+# red, so a real hang still reaches a person. A run cancelled by hand, or by a
+# newer push, is left alone: only a job whose own record says it "exceeded the
+# maximum execution time" counts.
+#
+# Costs nothing on an ordinary run. The job's `if` is false for every run that
+# ended any other way, and a job skipped by its `if` never starts a runner.
+name: re-run a timed-out test run
+
+on:
+  workflow_run:
+    workflows: ["tests"]
+    types: [completed]
+
+permissions:
+  actions: write
+  checks: read
+
+jobs:
+  rerun:
+    if: >-
+      github.event.workflow_run.run_attempt == 1 &&
+      (github.event.workflow_run.conclusion == 'cancelled' ||
+       github.event.workflow_run.conclusion == 'timed_out')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Re-run it if a job ran out of time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          timed_out=""
+          for job in $(gh api "repos/$REPO/actions/runs/$RUN/jobs" \
+              --jq '.jobs[] | select(.conclusion == "cancelled" or .conclusion == "timed_out") | .id'); do
+            if gh api "repos/$REPO/check-runs/$job/annotations" --jq '.[].message' \
+                | grep -q "exceeded the maximum execution time"; then
+              timed_out="$job"
+            fi
+          done
+          if [ -n "$timed_out" ]; then
+            echo "Job $timed_out ran out of time. Re-running run $RUN once."
+            gh api -X POST "repos/$REPO/actions/runs/$RUN/rerun"
+          else
+            echo "Run $RUN was cancelled, but not by a timeout. Leaving it."
+          fi
