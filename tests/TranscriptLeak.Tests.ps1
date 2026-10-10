@@ -35,6 +35,11 @@ BeforeAll {
         $saved = @{ TMP = $env:TMP; TEMP = $env:TEMP; ZTOKENS_DATA = $env:ZTOKENS_DATA }
         try {
             $env:TMP = $tmp; $env:TEMP = $tmp; $env:ZTOKENS_DATA = $data
+            # Continue, whatever the caller's preference: under 2>&1, Windows
+            # PowerShell turns each line the child writes to stderr - a fixture's
+            # throw - into an error record, and CI's Stop made that terminate the
+            # test itself. Set here, it is local to this function.
+            $ErrorActionPreference = 'Continue'
             $out = & powershell -NoProfile -ExecutionPolicy Bypass -File $file 2>&1 | Out-String
             $code = $LASTEXITCODE
         }
