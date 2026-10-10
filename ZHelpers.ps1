@@ -982,6 +982,15 @@ function Show-ProjectMotd {
 }
 
 # ── Output tracking ───────────────────────────────────────────────────────────
+# Characters per token for the output estimate. Measured 2026-10-09 with
+# Anthropic's count_tokens on 8.9M chars of real z-script transcripts: 1.97 on
+# Claude Opus 5.5, Fable 5.1, Sonnet 5.5 and Haiku 5.5 (one shared tokenizer),
+# 2.62 on the previous one. The 3.5 used before was a prose rule of thumb, never
+# measured, and counted ~44% too few tokens: build logs, paths and hashes
+# tokenize far denser than prose. Re-measure when the tokenizer changes. The
+# label travels with every ztokens record, so the basis of each figure is known.
+$global:ZCharsPerToken = 2.0
+$global:ZTokenBasis    = "est. chars/2.0"
 $global:_ZTrackPath = $null
 # Set by token-count.ps1's Invoke-Measured while a script is being timed.
 # Start-ZTracking checks this so inner scripts don't replace the outer transcript.
@@ -1010,7 +1019,7 @@ function Add-ZTokensRecord {
         if (-not $dir) { $dir = Join-Path (Split-Path -Parent $PSScriptRoot) "ztokens\data" }
         if (-not (Test-Path -LiteralPath $dir)) { return }
         $model = $env:ZTOKENS_MODEL
-        if (-not $model) { $model = "est. chars/3.5" }
+        if (-not $model) { $model = $global:ZTokenBasis }
         $rec = @{
             ts       = (Get-Date).ToString("o")
             script   = [string]$global:_ZTrackScript
@@ -1066,7 +1075,7 @@ function Stop-ZTracking {
         $text = $body -join "`n"
         $lc   = ($body | Where-Object { $_.Trim() -ne "" }).Count
         $cc   = $text.Length
-        $tok  = [math]::Round($cc / 3.5)
+        $tok  = [math]::Round($cc / $global:ZCharsPerToken)
         Write-Host ""
         Write-Host ("--- {0:N0} lines / {1:N0} chars / ~{2:N0} tokens est. (Claude Code) ---" -f $lc, $cc, $tok) -ForegroundColor DarkGray
         Add-ZTokensRecord -Lines $lc -Chars $cc -Est $tok

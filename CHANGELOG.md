@@ -10,6 +10,23 @@ Notable changes to the evomedia.net Token Savers.
 
 ## Unreleased
 
+### Fixed
+
+- **Token estimates were about 44% low.** Every script's
+  `~N tokens est.` footer, `token-count.ps1` and the ztokens records
+  divided output characters by 3.5, a prose rule of thumb that was never
+  measured. Anthropic's `count_tokens` on 8.9M characters of real z-script
+  output gives 1.97 characters per token on Claude Opus 5.5, Fable 5.1,
+  Sonnet 5.5 and Haiku 5.5 (they share one tokenizer), and 2.03 on short,
+  non-deploy output. The ratio is now one named constant in `ZHelpers.ps1`,
+  `$global:ZCharsPerToken = 2.0`, which `token-count.ps1` reads instead of
+  keeping its own copy, and records are labelled `est. chars/2.0`.
+- **`TOKEN_SAVINGS.md` figures recomputed at the measured ratio.** Every
+  measured per-run and per-day figure is the same captured character count
+  at 2.0 instead of 3.5 (×1.75; an active dev day is ~46,300 tokens, not
+  ~26,500). Prices are updated to the current models: Haiku 5.5, Sonnet 5.5,
+  Opus 5.5, Fable 5.1.
+
 ## v1.0.0.0.28 - 2026-09-22
 
 ### Changed

@@ -24,17 +24,22 @@ The savings from running a script yourself is the first column: if you run it,
 Claude ingests **zero**. The extra value of *having* the scripts at all is the gap
 between the two columns.
 
-Dollar equivalents use a blended input/output rate: **Sonnet 5 ≈ $9/1M** | **Opus 4.8 ≈ $15/1M** | **Fable 5 ≈ $30/1M**
+Dollar equivalents use a blended input/output rate: **Sonnet 5.5 ≈ $6/1M** | **Opus 5.5 ≈ $12/1M** | **Fable 5.1 ≈ $30/1M**
 
 > **Measurement note:** "Measured" figures come from `token-count.ps1`, which runs
-> each script under `Start-Transcript` and counts output characters ÷ 3.5
-> chars/token. Captured in **Claude Code (Sonnet 4.6)** against the `sp` project.
-> Strictly speaking that's *measured output volume with estimated tokenization*:
-> ÷3.5 is a prose heuristic, and code-heavy output (paths, JSON, container IDs)
-> fragments into **more** tokens per character under a real BPE tokenizer — so the
-> token figures here are likely conservative. "Estimated (raw)" figures are *not*
-> measured — they approximate manual orchestration and are marked *est.*
-> throughout. Other models/interfaces tokenize differently.
+> each script under `Start-Transcript` and counts its output characters. Captured
+> in Claude Code against the `sp` project. Characters become tokens at **2.0
+> characters per token**, a ratio measured in October 2026 with Anthropic's
+> `count_tokens` on 8.9M characters of real z-script output: 1.97 on Claude
+> Opus 5.5, Fable 5.1, Sonnet 5.5 and Haiku 5.5, which share one tokenizer, and
+> 2.03 on short, non-deploy script output alone.
+>
+> Earlier versions of this page divided by 3.5, a prose rule of thumb that counted
+> about **44% too few tokens**: build logs, paths and container IDs tokenize far
+> more densely than prose. Every measured figure below has been recomputed from
+> the same captured character counts at the measured ratio (×1.75).
+> "Estimated (raw)" figures are *not* measured — they approximate manual
+> orchestration and are marked *est.* throughout.
 
 ---
 
@@ -44,23 +49,23 @@ The bold figures below are real captures from `token-count.ps1 sp`; rows flagged
 
 | Script | Measured tokens/run | Notes |
 |--------|--------------------:|-------|
-| `zec2online` | **267** | reachability + version check |
-| `zec2` | **331** | EC2 TCP/HTTP + build match |
-| `zbackup_ec2` | **334** | pull server backup |
-| `zrepair` | **364** | clean audit; more if it restarts containers |
-| `zkill` | **377** | free the dev port |
-| `zbackup` | **436** | local project snapshot |
-| `zrestart` | **724** | kill + restart (detached) |
-| `zstart` | **762** | start dev server (detached) |
-| `zsync` | **769** | mirror backups offsite |
-| `zdeploy` *(cached)* | **~810** | 53s deploy, layers cached |
-| `zdeploy` *(full rebuild)* | **~34,600** *est.* | packages changed; streams full docker build |
-| `zstart_docker` | *not measured* | est. ~500–1,500 |
+| `zec2online` | **467** | reachability + version check |
+| `zec2` | **579** | EC2 TCP/HTTP + build match |
+| `zbackup_ec2` | **585** | pull server backup |
+| `zrepair` | **637** | clean audit; more if it restarts containers |
+| `zkill` | **660** | free the dev port |
+| `zbackup` | **763** | local project snapshot |
+| `zrestart` | **1,267** | kill + restart (detached) |
+| `zstart` | **1,334** | start dev server (detached) |
+| `zsync` | **1,346** | mirror backups offsite |
+| `zdeploy` *(cached)* | **~1,420** | 53s deploy, layers cached |
+| `zdeploy` *(full rebuild)* | **~60,600** *est.* | packages changed; streams full docker build |
+| `zstart_docker` | *not measured* | est. ~900–2,600 |
 
-**Cache state is what drives `zdeploy`.** A *cached* deploy is **~810 tokens**; the
+**Cache state is what drives `zdeploy`.** A *cached* deploy is **~1,420 tokens**; the
 large number only appears on a **full rebuild** (dependencies changed), which streams
 the entire docker build. During rapid deploy → test → fix iteration almost every run
-is cached, so ~810 is the realistic per-run cost — with occasional spikes when you
+is cached, so ~1,420 is the realistic per-run cost — with occasional spikes when you
 change packages.
 
 ---
@@ -68,7 +73,7 @@ change packages.
 ## Local Development Control
 
 ### `zstart` — Start dev servers
-**Measured: ~762 tokens/run** | est. raw orchestration: ~1,500–3,000 | typical 2–3 runs/day
+**Measured: ~1,334 tokens/run** | est. raw orchestration: ~1,500–3,000 | typical 2–3 runs/day
 
 Run it yourself and Claude sees none of the version-bump, MOTD, and startup output.
 If Claude started the server raw, it would also wait on health checks and confirm
@@ -83,7 +88,7 @@ zstart nextapp -Detached     # start in background, prompt returns
 ---
 
 ### `zkill` — Stop dev servers
-**Measured: ~377 tokens/run** | est. raw orchestration: ~1,000–2,000 | typical 2–3 runs/day
+**Measured: ~660 tokens/run** | est. raw orchestration: ~1,000–2,000 | typical 2–3 runs/day
 
 Raw, Claude would enumerate processes, kill them, and re-check the port is free.
 The script collapses that to one command.
@@ -96,7 +101,7 @@ zkill pyapp nextapp
 ---
 
 ### `zrestart` — Restart in one command
-**Measured: ~724 tokens/run** | est. raw orchestration: ~2,500–4,500 | typical 10–15 runs/day
+**Measured: ~1,267 tokens/run** | est. raw orchestration: ~2,500–4,500 | typical 10–15 runs/day
 
 The most-used command during rapid iteration. Raw, it's stop → wait → start with
 error handling at each hop — several tool calls and their reasoning. As one script
@@ -113,17 +118,17 @@ zrestart pyapp -Detached
 ## Build & Deployment
 
 ### `zdeploy` — Deploy to EC2
-**Measured: ~810 tokens/run cached** *(spikes to ~34,600 on a full rebuild)* | est. raw orchestration: ~5,000–12,000 cached, ~35,000+ full rebuild | typical 10–15 runs/day
+**Measured: ~1,420 tokens/run cached** *(spikes to ~60,600 on a full rebuild)* | est. raw orchestration: ~5,000–12,000 cached, ~61,000+ full rebuild | typical 10–15 runs/day
 
 The biggest lever — and the one where cache state matters most. The script *streams*
 the docker/SSH output whether Claude runs it or not, so a cached deploy really is only
-~810 tokens even through Claude. The raw-orchestration cost is higher not because of
+~1,420 tokens even through Claude. The raw-orchestration cost is higher not because of
 extra output but because Claude would reason between ~15 discrete steps (zip, preflight
 cleanup, scp, unzip, build, up, version bump, restart, verify) and handle retries
 itself. Running it yourself zeroes out all of that.
 
-Measured cached: three runs at 808 / 858 / 808 tokens (53–54s each). The full-rebuild
-figure (~34,600) is an estimate for package-change deploys — treat it as the upper
+Measured cached: three runs at 1,414 / 1,502 / 1,414 tokens (53–54s each). The full-rebuild
+figure (~60,600) is an estimate for package-change deploys — treat it as the upper
 bound.
 
 ```powershell
@@ -135,7 +140,7 @@ zdeploy all -Note "weekly release"
 ---
 
 ### `zstart_docker` — Start local Docker stack
-**Not measured** (est. ~500–1,500 tokens/run) | typical 1 run/day
+**Not measured** (est. ~900–2,600 tokens/run) | typical 1 run/day
 
 One-time setup per session; doesn't need agent involvement.
 
@@ -144,7 +149,7 @@ One-time setup per session; doesn't need agent involvement.
 ## Backup & Sync
 
 ### `zbackup` — Backup projects locally
-**Measured: ~436 tokens/run** | est. raw orchestration: ~1,200–2,500 | typical 1–2 runs/day
+**Measured: ~763 tokens/run** | est. raw orchestration: ~1,200–2,500 | typical 1–2 runs/day
 
 Raw, Claude enumerates files, decides exclusions, compresses, and stamps timestamps.
 You decide when to snapshot.
@@ -157,7 +162,7 @@ zbackup pyapp -Tag "pre-refactor"
 ---
 
 ### `zsync` — Sync backups offsite
-**Measured: ~769 tokens/run** | est. raw orchestration: ~1,500–3,000 | typical 1 run/day
+**Measured: ~1,346 tokens/run** | est. raw orchestration: ~1,500–3,000 | typical 1 run/day
 
 Raw, Claude tracks file diffs, runs robocopy, and verifies the copy. You manage
 cadence independently.
@@ -170,7 +175,7 @@ zsync viteapp                    # build + mirror dist to $env:ZSYNC_DEST
 ---
 
 ### `zbackup_ec2` — Pull backups from the server
-**Measured: ~334 tokens/run** | est. raw orchestration: ~1,000–2,000 | typical 1 run/day
+**Measured: ~585 tokens/run** | est. raw orchestration: ~1,000–2,000 | typical 1 run/day
 
 Separates database/app backup from code changes. Claude focuses on code; you manage
 infrastructure snapshots.
@@ -184,7 +189,7 @@ zbackup_ec2
 ## Diagnostics & Troubleshooting
 
 ### `zec2` — Check EC2 reachability
-**Measured: ~331 tokens/run** (`zec2online`: ~267) | est. raw orchestration: ~1,000–2,000 | typical 5–8 runs/day
+**Measured: ~579 tokens/run** (`zec2online`: ~467) | est. raw orchestration: ~1,000–2,000 | typical 5–8 runs/day
 
 When a deploy fails you run this first to confirm EC2 is reachable and the right
 build is live — before asking Claude to debug. Raw, that's blind network diagnostics
@@ -199,11 +204,11 @@ zec2online sp                    # lightweight HTTP-only variant
 ---
 
 ### `zrepair` — Audit & repair container routing
-**Measured: ~364 tokens/run (clean audit)** | est. raw orchestration: ~2,000–4,000 | typical 1–2 runs/day
+**Measured: ~637 tokens/run (clean audit)** | est. raw orchestration: ~2,000–4,000 | typical 1–2 runs/day
 
 When a page 502s, this isolates routing vs. DNS vs. app logic across several
 containers — rather than handing Claude an SSH session to figure out blind. The
-364-token figure is a healthy run with nothing to repair; a run that actually
+637-token figure is a healthy run with nothing to repair; a run that actually
 restarts containers emits more. Raw, Claude would SSH per container and reason
 across each check.
 
@@ -219,22 +224,24 @@ Per-run × runs/day. The per-run figures are **measured**; the daily totals mult
 them by **assumed typical run counts** (midpoints) — `zdeploy` and `zrestart` at
 10–15/day dominate the sum, so scale the total to your own cadence. The **est. raw**
 column approximates what Claude would burn orchestrating the same work with no
-scripts.
+scripts. Those raw estimates were judged in tokens directly, so recalibrating the
+character ratio leaves them as they were — apart from the full-rebuild floor,
+which can never be lower than the output it contains.
 
 | Script | Measured/run | Runs/day | Measured/day | Est. raw/day |
 |--------|-------------:|:--------:|-------------:|-------------:|
-| `zstart` | 762 | 2–3 | ~1,900 | ~3,800–9,000 |
-| `zkill` | 377 | 2–3 | ~940 | ~2,500–6,000 |
-| `zrestart` | 724 | 10–15 | ~9,050 | ~31,000–68,000 |
-| `zdeploy` *(cached)* | ~810 | 10–15 | ~10,100 | ~62,000–180,000 |
-| `zec2` (+`online`) | ~330 | 5–8 | ~2,200 | ~6,500–16,000 |
-| `zbackup` | 436 | 1–2 | ~650 | ~1,800–5,000 |
-| `zsync` | 769 | 1 | ~770 | ~1,500–3,000 |
-| `zbackup_ec2` | 334 | 1 | ~330 | ~1,000–2,000 |
-| `zrepair` | 364 | 1–2 | ~550 | ~3,000–6,000 |
-| **Total (active dev day)** | | | **~26,500** | **~115,000–295,000** *est.* |
+| `zstart` | 1,334 | 2–3 | ~3,300 | ~3,800–9,000 |
+| `zkill` | 660 | 2–3 | ~1,650 | ~2,500–6,000 |
+| `zrestart` | 1,267 | 10–15 | ~15,800 | ~31,000–68,000 |
+| `zdeploy` *(cached)* | ~1,420 | 10–15 | ~17,700 | ~62,000–180,000 |
+| `zec2` (+`online`) | ~580 | 5–8 | ~3,800 | ~6,500–16,000 |
+| `zbackup` | 763 | 1–2 | ~1,150 | ~1,800–5,000 |
+| `zsync` | 1,346 | 1 | ~1,350 | ~1,500–3,000 |
+| `zbackup_ec2` | 585 | 1 | ~585 | ~1,000–2,000 |
+| `zrepair` | 637 | 1–2 | ~960 | ~3,000–6,000 |
+| **Total (active dev day)** | | | **~46,300** | **~115,000–295,000** *est.* |
 
-The **~26,500/day** figure is measured per-run at an assumed typical cadence —
+The **~46,300/day** figure is measured per-run at an assumed typical cadence —
 reproducible on the per-run side, workflow-specific on the multiplier. It reflects an
 active tool-development day of mostly cached deploys. The
 **~115k–295k est.** upper figure is what it would cost to have Claude drive the raw
@@ -243,7 +250,7 @@ active tool-development day of mostly cached deploys. The
 prediction**: a capable agent asked to deploy might well write its own wrapper
 script and ingest very little — the counterfactual depends entirely on how the
 agent chooses to work. A day with several full-rebuild deploys pushes the measured
-figure higher too, since each rebuild streams ~34,600 tokens.
+figure higher too, since each rebuild streams ~60,600 tokens.
 
 **Daily dollar savings during active tool development:**
 
@@ -253,30 +260,32 @@ orchestration also generates agent *output* (reasoning and tool calls between st
 
 | Model | Measured/day @ input rate | Est. raw/day @ blended rate |
 |-------|--------------------------:|----------------------------:|
-| **Sonnet 5** | ~$0.08 ($3/1M) | ~$1.04–$2.66 ($9/1M) |
-| **Opus 4.8** | ~$0.13 ($5/1M) | ~$1.73–$4.43 ($15/1M) |
-| **Fable 5**  | ~$0.27 ($10/1M) | ~$3.45–$8.85 ($30/1M) |
+| **Sonnet 5.5** | ~$0.09 ($2/1M) | ~$0.69–$1.77 ($6/1M) |
+| **Opus 5.5** | ~$0.19 ($4/1M) | ~$1.38–$3.54 ($12/1M) |
+| **Fable 5.1** | ~$0.46 ($10/1M) | ~$3.45–$8.85 ($30/1M) |
 
 One-time ingest slightly understates the true cost: tokens that enter the context are
 re-sent on every later turn of the session (at cheaper cache-read rates when prompt
 caching applies), so the cumulative figure is somewhat higher than a single ingest.
 
-Over a ~22-day working month, the measured savings run **~$2–$6/mo** (Sonnet →
-Fable); the raw-orchestration estimate runs **~$23–$195/mo**. The honest dollar
+Over a ~22-day working month, the measured savings run **~$2–$10/mo** (Sonnet 5.5 →
+Fable 5.1); the raw-orchestration estimate runs **~$15–$195/mo**. The honest dollar
 figure is small — the real currency is **context**: every infrastructure token kept
 out of the window is context your agent keeps for the actual problem, and that's
 worth more than the dollars suggest.
 
 ---
 
-## Claude Model Token Costs *(July 2026)*
+## Claude Model Token Costs *(October 2026)*
 
 | Model | Input | Output | Typical use |
 |-------|-------|--------|-------------|
-| **Haiku 4.5** | $1/1M | $5/1M | Quick edits, small changes |
-| **Sonnet 5** | $3/1M | $15/1M | Daily coding, medium complexity |
-| **Opus 4.8** | $5/1M | $25/1M | Complex reasoning, multi-file refactors |
-| **Fable 5** | $10/1M | $50/1M | Advanced reasoning, agentic workflows |
+| **Haiku 5.5** | $0.10/1M | $0.50/1M | Quick edits, small changes |
+| **Sonnet 5.5** | $2/1M | $10/1M | Daily coding, medium complexity |
+| **Opus 5.5** | $4/1M | $20/1M | Complex reasoning, multi-file refactors |
+| **Fable 5.1** | $10/1M | $50/1M | Advanced reasoning, agentic workflows |
+
+Haiku 5.5's rates are for prompts up to 100K tokens ($0.50 / $2.50 beyond).
 
 ---
 
