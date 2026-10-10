@@ -22,6 +22,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 $cfg = Get-ZConfig
 
@@ -49,3 +51,4 @@ foreach ($key in $Projects) {
 
 Write-Host "`nDone. Data volumes are intact. Run zdeploy <project> to restart." -ForegroundColor DarkGray
 Stop-ZTracking
+} finally { Stop-ZTracking -IfActive }

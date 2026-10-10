@@ -21,6 +21,8 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 . (Join-Path $ScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 # Tolerate switch-style args from muscle memory; require an explicit target
 # ('all' included) — same convention as zbackup/zdeploy.
@@ -67,3 +69,4 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 Stop-ZTracking; exit $syncExitCode
+} finally { Stop-ZTracking -IfActive }

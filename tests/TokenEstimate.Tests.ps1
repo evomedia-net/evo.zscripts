@@ -39,9 +39,13 @@ Describe "Stop-ZTracking" {
         Remove-Item Env:\ZTOKENS_MODEL -ErrorAction SilentlyContinue
         # Start-ZTracking sweeps leftover transcripts from the temp directory
         #, so point it at a test folder, never the machine's real %TEMP%.
+        $script:SavedTmp = $env:TMP, $env:TEMP
+        $env:TMP = $env:TEMP = Join-Path $TestDrive ("tmp-" + [guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $env:TMP | Out-Null
     }
     AfterEach {
         Remove-Item Env:\ZTOKENS_DATA -ErrorAction SilentlyContinue
+        $env:TMP, $env:TEMP = $script:SavedTmp
     }
 
     It "prints and records the same estimate, at the measured ratio" {

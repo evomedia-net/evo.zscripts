@@ -996,8 +996,42 @@ $global:_ZTrackPath = $null
 # Start-ZTracking checks this so inner scripts don't replace the outer transcript.
 if ($null -eq $global:_ZMeasuring) { $global:_ZMeasuring = $false }
 
+# Transcripts a run left behind. Every tracked script ends tracking in a
+# finally block, so this is the net under it, for runs that still escape:
+# Ctrl+C pressed again inside the finally, a window closed mid-run, a killed
+# process, and files left by earlier versions, which leaked on every error.
+#
+# Two kinds, told apart without trusting any variable - $global:_ZTrackPath is
+# reset each time this file is loaded, so the next run has forgotten the last:
+#  - one THIS window is still writing. An unstopped transcript records the
+#    window until it closes. It is held open, and its header names this process,
+#    so only then is Stop-Transcript called - never on another window's run, nor
+#    on a transcript somebody started by hand.
+#  - files whose process has ended. Nothing holds them open, so they delete;
+#    a live run in another window holds its file open, so Remove-Item is
+#    refused and it is skipped. The hour's grace covers the moment between
+#    another run's Stop-Transcript and its own delete.
+function Clear-ZTrackLeftovers {
+    $cutoff = (Get-Date).AddHours(-1)
+    $files = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter "_ztrack_*.txt" -File -ErrorAction SilentlyContinue)
+    foreach ($f in $files) {
+        $mine = $false
+        try {
+            $head = Get-Content -LiteralPath $f.FullName -TotalCount 12 -ErrorAction Stop
+            $mine = [bool]($head | Where-Object { $_ -match "^Process ID: $PID\s*$" })
+        } catch { }
+        if (-not $mine -and $f.LastWriteTime -gt $cutoff) { continue }
+        try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; continue } catch { }
+        if ($mine) {
+            try { Stop-Transcript | Out-Null } catch { }
+            Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Start-ZTracking {
     if ($global:_ZMeasuring) { return }
+    try { Clear-ZTrackLeftovers } catch { }
     # Remember who is being tracked so Stop-ZTracking can log the run (ztokens).
     try { $global:_ZTrackScript = [System.IO.Path]::GetFileNameWithoutExtension((Get-PSCallStack)[1].ScriptName) } catch { $global:_ZTrackScript = "" }
     try {
@@ -1052,7 +1086,12 @@ function Write-ZTrailer {
 }
 
 function Stop-ZTracking {
-    param([string]$FinalNote)
+    param([string]$FinalNote, [switch]$IfActive)
+    # -IfActive is the `finally` every tracked script ends with. It ends a run
+    # that left through a terminating error, an exit or Ctrl+C, and is silent
+    # when the script already stopped tracking itself, so a normal run does not
+    # print its trailer twice.
+    if ($IfActive -and -not $global:_ZTrackPath) { return }
     # The trailer is owed whether or not tracking ever started - a script that
     # printed output still deserves the separation.
     if (-not $global:_ZTrackPath) { Write-ZTrailer -FinalNote $FinalNote; return }

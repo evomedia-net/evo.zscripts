@@ -22,6 +22,17 @@ Fixed
   non-deploy output. The ratio is now one named constant in ZHelpers.ps1,
   $global:ZCharsPerToken = 2.0, which token-count.ps1 reads instead of
   keeping its own copy, and records are labelled est. chars/2.0.
+- **A script that hit an error, or that you stopped with Ctrl+C, left its
+  output transcript recording the rest of the PowerShell window.** Tracking
+  ended only on the paths that reached Stop-ZTracking, so the transcript in
+  %TEMP% kept capturing every later command and its output, was never
+  deleted, and the run was never recorded. Every tracked script now runs its
+  body in try { ... } finally { Stop-ZTracking -IfActive }, which runs on an
+  error, an exit and Ctrl+C. Start-ZTracking also clears what earlier runs
+  left: this window's own unstopped transcript, recognised by the process ID in
+  its header, and any _ztrack_* file whose process has ended, after an
+  hour's grace. A file still held open by a live run in another window is
+  never touched.
 - TOKEN_SAVINGS.md figures recomputed at the measured ratio. Every
   measured per-run and per-day figure is the same captured character count
   at 2.0 instead of 3.5 (×1.75; an active dev day is ~46,300 tokens, not

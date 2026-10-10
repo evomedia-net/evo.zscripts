@@ -23,6 +23,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 if ($Projects.Count -eq 0) {
     $keys = (Get-ZProjectKeys) -join ', '
@@ -76,3 +78,4 @@ foreach ($key in $Projects) {
 Write-Host ""
 Write-Host "Kill complete." -ForegroundColor Cyan
 Stop-ZTracking
+} finally { Stop-ZTracking -IfActive }
