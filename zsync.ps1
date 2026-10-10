@@ -22,6 +22,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 $cfg = Get-ZConfig
 $BackupsRoot         = Split-Path -Parent $cfg.paths.backupsLocal
@@ -128,3 +130,4 @@ foreach ($key in $Projects) {
     }
 }
 Stop-ZTracking
+} finally { Stop-ZTracking -IfActive }

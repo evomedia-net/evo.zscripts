@@ -19,6 +19,8 @@ param(
 $ErrorActionPreference = "Continue"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 $cfg = Get-ZConfig
 if (-not $HostName) { $HostName = $cfg.ec2.ip }
@@ -143,3 +145,4 @@ Write-Host "If TCP fails: open inbound TCP in the server's firewall/security gro
 Write-Host "If TCP OK but HTTP fails: SSH in and check docker/nginx (curl -sI http://127.0.0.1/)." -ForegroundColor Cyan
 Write-Host ""
 Stop-ZTracking; exit $exitCode
+} finally { Stop-ZTracking -IfActive }

@@ -55,6 +55,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 function Show-Usage {
     Write-Host ""
@@ -287,3 +289,4 @@ catch {
     Stop-ZTracking
     exit 1
 }
+} finally { Stop-ZTracking -IfActive }

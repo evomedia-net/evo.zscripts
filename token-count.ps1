@@ -14,7 +14,8 @@
 #   .\token-count.ps1 <project> -Only zdeploy,zec2          # run specific scripts only
 #
 # Output: a summary table with lines, chars, and estimated tokens per script.
-# Estimated tokens = chars / 3.5 (Claude's approximate tokenization rate).
+# Estimated tokens = chars / $global:ZCharsPerToken from ZHelpers.ps1 (2.0,
+# measured with count_tokens on real z-script output; see TOKEN_SAVINGS.md).
 
 param(
     [Parameter(Position = 0, Mandatory = $true)]
@@ -26,7 +27,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 
-$CHARS_PER_TOKEN = 3.5
+# One ratio for the footer, ztokens and this table, so they cannot disagree.
+$CHARS_PER_TOKEN = $global:ZCharsPerToken
 
 $results = [System.Collections.Generic.List[hashtable]]::new()
 
@@ -92,7 +94,7 @@ function Invoke-Measured {
 
 Write-Host ""
 Write-Host "=== Token Count - project: $Project ===" -ForegroundColor Cyan
-Write-Host "Chars per token: $CHARS_PER_TOKEN (Claude approximate)" -ForegroundColor DarkGray
+Write-Host "Chars per token: $CHARS_PER_TOKEN (measured with count_tokens, current Claude models)" -ForegroundColor DarkGray
 Write-Host ""
 
 # ── Local dev ──────────────────────────────────────────────────────────────────

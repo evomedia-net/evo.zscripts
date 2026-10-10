@@ -19,6 +19,8 @@ param (
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 $cfg = Get-ZConfig
 if (-not $ec2Host) { $ec2Host = $cfg.ec2.ip }
@@ -116,3 +118,4 @@ Write-Host "Password             : $noreplyPassword" -ForegroundColor Yellow
 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Cyan
 Write-Host "Completed successfully!" -ForegroundColor Green
 Stop-ZTracking
+} finally { Stop-ZTracking -IfActive }

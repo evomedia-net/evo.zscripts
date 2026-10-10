@@ -982,13 +982,56 @@ function Show-ProjectMotd {
 }
 
 # ── Output tracking ───────────────────────────────────────────────────────────
+# Characters per token for the output estimate. Measured 2026-10-09 with
+# Anthropic's count_tokens on 8.9M chars of real z-script transcripts: 1.97 on
+# Claude Opus 5.5, Fable 5.1, Sonnet 5.5 and Haiku 5.5 (one shared tokenizer),
+# 2.62 on the previous one. The 3.5 used before was a prose rule of thumb, never
+# measured, and counted ~44% too few tokens: build logs, paths and hashes
+# tokenize far denser than prose. Re-measure when the tokenizer changes. The
+# label travels with every ztokens record, so the basis of each figure is known.
+$global:ZCharsPerToken = 2.0
+$global:ZTokenBasis    = "est. chars/2.0"
 $global:_ZTrackPath = $null
 # Set by token-count.ps1's Invoke-Measured while a script is being timed.
 # Start-ZTracking checks this so inner scripts don't replace the outer transcript.
 if ($null -eq $global:_ZMeasuring) { $global:_ZMeasuring = $false }
 
+# Transcripts a run left behind. Every tracked script ends tracking in a
+# finally block, so this is the net under it, for runs that still escape:
+# Ctrl+C pressed again inside the finally, a window closed mid-run, a killed
+# process, and files left by earlier versions, which leaked on every error.
+#
+# Two kinds, told apart without trusting any variable - $global:_ZTrackPath is
+# reset each time this file is loaded, so the next run has forgotten the last:
+#  - one THIS window is still writing. An unstopped transcript records the
+#    window until it closes. It is held open, and its header names this process,
+#    so only then is Stop-Transcript called - never on another window's run, nor
+#    on a transcript somebody started by hand.
+#  - files whose process has ended. Nothing holds them open, so they delete;
+#    a live run in another window holds its file open, so Remove-Item is
+#    refused and it is skipped. The hour's grace covers the moment between
+#    another run's Stop-Transcript and its own delete.
+function Clear-ZTrackLeftovers {
+    $cutoff = (Get-Date).AddHours(-1)
+    $files = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter "_ztrack_*.txt" -File -ErrorAction SilentlyContinue)
+    foreach ($f in $files) {
+        $mine = $false
+        try {
+            $head = Get-Content -LiteralPath $f.FullName -TotalCount 12 -ErrorAction Stop
+            $mine = [bool]($head | Where-Object { $_ -match "^Process ID: $PID\s*$" })
+        } catch { }
+        if (-not $mine -and $f.LastWriteTime -gt $cutoff) { continue }
+        try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; continue } catch { }
+        if ($mine) {
+            try { Stop-Transcript | Out-Null } catch { }
+            Remove-Item -LiteralPath $f.FullName -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Start-ZTracking {
     if ($global:_ZMeasuring) { return }
+    try { Clear-ZTrackLeftovers } catch { }
     # Remember who is being tracked so Stop-ZTracking can log the run (ztokens).
     try { $global:_ZTrackScript = [System.IO.Path]::GetFileNameWithoutExtension((Get-PSCallStack)[1].ScriptName) } catch { $global:_ZTrackScript = "" }
     try {
@@ -1010,7 +1053,7 @@ function Add-ZTokensRecord {
         if (-not $dir) { $dir = Join-Path (Split-Path -Parent $PSScriptRoot) "ztokens\data" }
         if (-not (Test-Path -LiteralPath $dir)) { return }
         $model = $env:ZTOKENS_MODEL
-        if (-not $model) { $model = "est. chars/3.5" }
+        if (-not $model) { $model = $global:ZTokenBasis }
         $rec = @{
             ts       = (Get-Date).ToString("o")
             script   = [string]$global:_ZTrackScript
@@ -1043,7 +1086,12 @@ function Write-ZTrailer {
 }
 
 function Stop-ZTracking {
-    param([string]$FinalNote)
+    param([string]$FinalNote, [switch]$IfActive)
+    # -IfActive is the `finally` every tracked script ends with. It ends a run
+    # that left through a terminating error, an exit or Ctrl+C, and is silent
+    # when the script already stopped tracking itself, so a normal run does not
+    # print its trailer twice.
+    if ($IfActive -and -not $global:_ZTrackPath) { return }
     # The trailer is owed whether or not tracking ever started - a script that
     # printed output still deserves the separation.
     if (-not $global:_ZTrackPath) { Write-ZTrailer -FinalNote $FinalNote; return }
@@ -1066,7 +1114,7 @@ function Stop-ZTracking {
         $text = $body -join "`n"
         $lc   = ($body | Where-Object { $_.Trim() -ne "" }).Count
         $cc   = $text.Length
-        $tok  = [math]::Round($cc / 3.5)
+        $tok  = [math]::Round($cc / $global:ZCharsPerToken)
         Write-Host ""
         Write-Host ("--- {0:N0} lines / {1:N0} chars / ~{2:N0} tokens est. (Claude Code) ---" -f $lc, $cc, $tok) -ForegroundColor DarkGray
         Add-ZTokensRecord -Lines $lc -Chars $cc -Est $tok

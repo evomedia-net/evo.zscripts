@@ -58,6 +58,8 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
+# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+try {
 
 $cfg        = Get-ZConfig
 $EC2_IP     = $cfg.ec2.ip
@@ -1340,3 +1342,4 @@ try {
 # this deployed. Only reached on success; a failed deploy throws out of the loop
 # above, so this never claims a deploy that didn't happen.
 Stop-ZTracking -FinalNote ("Last deployed at {0}" -f (Get-Date -Format "MM/dd/yyyy hh:mm:ss tt"))
+} finally { Stop-ZTracking -IfActive }
