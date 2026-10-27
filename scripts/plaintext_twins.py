@@ -74,7 +74,9 @@ def render(md: str) -> str:
         if heading:
             text = _inline(heading.group(2))
             out.append(text)
-            out.append(("=" if len(heading.group(1)) == 1 else "-") * len(text))
+            # h1 =, h2 -, h3 ~, deeper . - evo.polaris's md-txt.mjs, whose
+            # CHANGELOG.txt is the fleet's changelog format (Kelly, 2026-10-27).
+            out.append("=-~..."[len(heading.group(1)) - 1] * len(text))
             continue
         out.append(_inline(line))
     text = "\n".join(out)

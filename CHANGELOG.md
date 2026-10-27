@@ -6,7 +6,11 @@ Licensed under the MIT License. See LICENSE.
 
 # Changelog
 
-Notable changes to the evomedia.net Token Savers.
+Notable changes to the evomedia.net Token Savers, newest first.
+
+Versions have five parts, `v{major}.{rc}.{beta}.{alpha}.{build}`, and the build number
+advances once per release. New changes go under Unreleased in the same pull request,
+and the release moves them under its version.
 
 ## Unreleased
 
@@ -38,7 +42,11 @@ Notable changes to the evomedia.net Token Savers.
   ~26,500). Prices are updated to the current models: Haiku 5.5, Sonnet 5.5,
   Opus 5.5, Fable 5.1.
 
-## v1.0.0.0.28 - 2026-09-22
+### Documentation
+
+- **changelog:** the fleet format, evo.polaris's with no date on version headings; the .txt twins underline a third-level heading with ~ ([#99](https://github.com/evomedia-net/evo.zscripts/pull/99))
+
+## v1.0.0.0.28
 
 ### Changed
 
@@ -50,7 +58,7 @@ Notable changes to the evomedia.net Token Savers.
   and because it sits inside a try/catch the failure was silent and looked
   exactly like a service that could not be reached.
 
-## v1.0.0.0.26 - 2026-09-14
+## v1.0.0.0.26
 
 ### Fixed
 
@@ -66,7 +74,7 @@ Notable changes to the evomedia.net Token Savers.
   the base image is refreshed at the same time. Stacks that pull are
   unaffected.
 
-## v1.0.0.0.25 - 2026-09-12
+## v1.0.0.0.25
 
 ### Added
 
@@ -91,7 +99,7 @@ Notable changes to the evomedia.net Token Savers.
   quietly scans nothing prints the same reassuring line as one that scanned
   everything, and the two must not be confusable.
 
-## v1.0.0.0.24 - 2026-09-08
+## v1.0.0.0.24
 
 ### Added
 - **`zdeploy` can lay the release tag it already knows the number for.**
@@ -124,7 +132,7 @@ Notable changes to the evomedia.net Token Savers.
   from `Invoke-DeployGitPull`, on purpose. Fourteen tests drive real git
   under `Stop` on 5.1, the host the defect lives on (#130).
 
-## v1.0.0.0.23 - 2026-08-31
+## v1.0.0.0.23
 
 ### Changed
 - **Every release since 1.0.0 has its own section again** - 21 entries had
@@ -148,7 +156,7 @@ Notable changes to the evomedia.net Token Savers.
   markdown indefinitely. `tests/PlainTextTwins.Tests.ps1` runs it, and
   reports *inconclusive* rather than passing when python is unavailable.
 
-## v1.0.0.0.22 - 2026-08-31
+## v1.0.0.0.22
 
 ### Changed
 - **The sanitization denylist moved to `tests/sanitization-patterns.psd1`**,
@@ -159,7 +167,7 @@ Notable changes to the evomedia.net Token Savers.
   names, operator paths. It therefore reported "clean" on files this suite
   rejects. No rule changed; only where they live.
 
-## v1.0.0.0.21 - 2026-08-31
+## v1.0.0.0.21
 
 ### Added
 - **`tests/VerifyPlan.Tests.ps1`** — the verification channel-selection rules
@@ -203,7 +211,7 @@ Notable changes to the evomedia.net Token Savers.
   calls bypassed the wrapper that flattens this. All remote steps now run
   through it and are judged by exit code alone.
 
-## v1.0.0.0.20 - 2026-08-30
+## v1.0.0.0.20
 
 ### Changed
 - **`zversion bump` is once per *release*, not once per PR** — the usage text
@@ -215,7 +223,7 @@ Notable changes to the evomedia.net Token Savers.
   records what the rule was when `zversion` shipped, is deliberately left as
   written.
 
-## v1.0.0.0.19 - 2026-08-30
+## v1.0.0.0.19
 
 ### Added
 - **Read a live build from inside the docker network, not through the public
@@ -236,7 +244,7 @@ Notable changes to the evomedia.net Token Savers.
   knows a version. Purely additive: projects without those two keys behave
   exactly as before.
 
-## v1.0.0.0.14 - 2026-08-20
+## v1.0.0.0.14
 
 ### Fixed
 - **`scp` no longer receives an ssh-only flag** — the stdin-hang fix added
@@ -251,7 +259,7 @@ Notable changes to the evomedia.net Token Savers.
   without checking; it now points at `scp`'s own output, where the real
   diagnosis already was.
 
-## v1.0.0.0.8 - 2026-08-12
+## v1.0.0.0.8
 
 ### Fixed
 - **Deploys can no longer hang forever on an ssh prompt** — every
@@ -286,7 +294,7 @@ Notable changes to the evomedia.net Token Savers.
   recursively, and the `ensure edge dir` chown is recursive so scp into
   docker-created root-owned dirs cannot fail.
 
-## v1.0.0.0.0 - 2026-07-28
+## v1.0.0.0.0
 
 ### Added
 - **Versioned releases: `zversion`, `zrelease`, `releases/`** — the toolkit now
