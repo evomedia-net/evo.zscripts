@@ -47,7 +47,7 @@ The example config ships with sample projects named by their kind — pyapp, vit
 Set the ZCONFIG environment variable to point at a config somewhere else — handy for a second machine profile, or for running against a scratch config without touching your real one.
 
 Config reference
-----------------
+~~~~~~~~~~~~~~~~
 
     {
       "ec2": {
@@ -137,10 +137,10 @@ The .cmd wrappers are the everyday interface. Every command takes one or more pr
 | zpull [-Execute\|-e] | zmerge, then bring every affected local checkout current |
 
 Local development
------------------
+~~~~~~~~~~~~~~~~~
 
 zstart — start dev servers
---------------------------
+..........................
 
     zstart <project> [<project> ...] [-Port N] [-BindHost <host>] [-Detached]
 
@@ -152,7 +152,7 @@ Starts each project's dev server using the handler for its kind: python runs pyt
     zstartd nextapp                    # detached: window opens, prompt returns
 
 zkill — stop dev servers
-------------------------
+........................
 
     zkill <project> [<project> ...] | all  [-Port N] [-KillAll]
 
@@ -164,17 +164,17 @@ Finds whatever is LISTENING on each project's dev port and kills it — along wi
     zkill nextapp -KillAll       # also kill orphaned runtime processes
 
 zrestart — kill then start
---------------------------
+..........................
 
     zrestart <project> [<project> ...] [-Port N] [-KillAll] [-NoRestart] [-Detached] [-BindHost <host>]
 
 The "it's wedged, bounce it" command: kill phase, then start phase with the same flags. -NoRestart makes it kill-only; zrestartd restarts detached.
 
 Server deployment & operations
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 zdeploy — deploy to the server
-------------------------------
+..............................
 
     zdeploy <project> [<project> ...] [-Note "message"]
     zdeploy all [-Note "message"]
@@ -192,35 +192,35 @@ all deploys every project — edge kinds first, then the rest in config order �
     zdeploy all -Note "weekly release"
 
 zec2 — reachability check
--------------------------
+.........................
 
     zec2 [<project> ...]        # no args = every project with a domain
 
 For each project: TCP connect, then an HTTP GET with the project's domain as the Host header, then the live build version. Fast "is it up?" answer with firewall hints when it isn't.
 
 zec2online — health check with auto-recovery
---------------------------------------------
+............................................
 
     zec2online [<project> ...]  # no args = every project with a domain
 
 The heavier sibling: verifies each app over HTTP, compares the local build version against what the server is actually serving (a mismatch means "redeploy?" — or a stale cache), and if a site is down it SSHes in, runs docker compose up -d for the app and the edge proxy, waits up to 30 s, and streams compose logs and system diagnostics if recovery fails.
 
 zrepair — fix server routing
-----------------------------
+............................
 
     zrepair <project> [<project> ...]
 
 Validates the edge proxy's nginx config (if an edge project is defined), shows each stack's compose status, starts anything that's down, and smoke-tests the live domain. For the "deploy succeeded but the site 502s" class of problem.
 
 zstop.ps1 — stop server stacks
-------------------------------
+..............................
 
     zstop <project> [<project> ...]
 
 docker compose down for the selected stacks on the server. Data volumes are preserved; zdeploy <project> brings a stack back. (PowerShell script only, no .cmd wrapper.)
 
 zec2_rotatekeys — rotate server-side secrets
---------------------------------------------
+............................................
 
     zec2_rotatekeys <project> [-Rotate KEY,KEY] [-Set KEY,KEY] [-EnvFile rel/path] [-Restart] [-WhatIf]
 
@@ -233,10 +233,10 @@ For when a secret leaks or a deploy overwrites a production .env with dev values
     zec2_rotatekeys pyapp -Rotate JWT_SECRET -Set DATABASE_URL,ADMIN_EMAIL,ADMIN_PASSWORD -Restart
 
 Backups
--------
+~~~~~~~
 
 zbackup — local backups
------------------------
+.......................
 
     zbackup <project> [<project> ...] [-Tag "label"]
     zbackup all                                # every project + this scripts folder
@@ -248,14 +248,14 @@ Zips each project's source into paths.backupsLocal\<key>\<timestamp>_<key>[_tag]
     zbackup pyapp -Tag "pre-migration"
 
 zbackup_ec2 — pull backups from the server
-------------------------------------------
+..........................................
 
     zbackup_ec2 [<project> ...]     # no args = every project with a remote.path
 
 For projects with a db block, runs pg_dump inside the server's db container. Also zips server-side data dirs (uploads/, archive/, dist/) when present, then downloads everything to paths.backupsEc2 and cleans up the remote temp files.
 
 zsync — sync backups offsite
-----------------------------
+............................
 
     zsync                                       # new backup files -> paths.oneDriveBackups
     zsync <viteproject> -Destination <path>     # npm run build, then mirror dist/ to path
@@ -263,36 +263,36 @@ zsync — sync backups offsite
 The no-args mode copies only files that don't already exist at the destination (never overwrites, never deletes). The project mode is for mirroring a static build; it also honors $env:ZSYNC_DEST.
 
 zbackup_and_sync.ps1 — both in one
-----------------------------------
+..................................
 
     zbackup_and_sync.ps1 <project> [<project> ...] | all
 
 Runs zbackup, then zsync. This is what the scheduled task calls (with all).
 
 setup_backup_schedule.ps1 — nightly automation
-----------------------------------------------
+..............................................
 
 Run as Administrator once. Creates a Windows Scheduled Task that runs zbackup_and_sync.ps1 all daily at 2:00 AM.
 
 Utilities
----------
+~~~~~~~~~
 
 zstart_docker — local compose stack
------------------------------------
+...................................
 
     zstart_docker [-Build] [-Attached] [-Solo]
 
 Brings up a docker compose stack from scriptsRoot\docker\docker-compose.yml (or docker-compose.solo.yml with -Solo). Checks that Docker Desktop is actually running and tells you how to unwedge it if not.
 
 zsetup_mail.ps1 — provision mail accounts
------------------------------------------
+.........................................
 
     zsetup_mail.ps1 -domain yourdomain.com [-mailHost mail.yourdomain.com]
 
 Creates admin@ and noreply@ mailboxes (with generated passwords) in a docker-mailserver container on the server, then prints the exact DNS records (MX, SPF, A) and SMTP/IMAP settings to plug into your app.
 
 ZHelpers.ps1 — shared library
------------------------------
+.............................
 
 Not run directly. Dot-sourced by the other scripts; provides config loading (Get-ZConfig, Get-ZProject), SSH helpers (Invoke-Ec2Step), the deploy/backup archiver (New-ProjectArchive), and process-kill helpers. Extend here if you're adding your own scripts.
 
@@ -306,20 +306,20 @@ Why not just check for HTTP 200? Because a 200 proves nothing — a stale cached
 It's optional — deploys still work without it, ending in a WARNING instead of a PASS — but it's the difference between "the server answered" and "the code I just shipped is actually running."
 
 1. Add a version file to your project
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // build-version.json  (vite: in public/ · nextjs: in public/ · python: project root)
     { "productVersion": "1.0", "buildNumber": 42 }
 
 2. Bump it during the server-side Docker build
-----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The convention: each deploy's Docker build increments buildNumber by one, so the deploy script expects local buildNumber + 1 to show up live. One line in your Dockerfile does it:
 
     RUN node -e "const f='public/build-version.json',v=require('./'+f);v.buildNumber++;require('fs').writeFileSync(f,JSON.stringify(v))"
 
 3. Expose it
-------------
+~~~~~~~~~~~~
 
 Vite / static sites — nothing to do: public/build-version.json is served at /build-version.json, which is where verification looks. (If your edge proxy blocks it from outside, set remote.containerName in config and verification reads it inside the container instead.)
 
@@ -345,7 +345,7 @@ Python (FastAPI shown; any framework works) — expose /api/build-version:
 Python projects can go further with a scripts/build_version_tool.py supporting get / set / bump subcommands — if present, zdeploy bumps the version inside the running container, records it, and zstart bumps on every dev start.
 
 Alternative: server-side health check (verify block)
-----------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Not every stack is published through the edge proxy — internal APIs, apps whose host port the firewall blocks, services waiting on a DNS record. For those, the old fallback (GET http://<server-ip>/) was worse than nothing: the edge proxy's default vhost answers with a 200 and the deploy "passes" even if your app never started.
 

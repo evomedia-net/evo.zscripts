@@ -74,7 +74,7 @@ Local Development Control
 -------------------------
 
 zstart — Start dev servers
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~1,334 tokens/run | est. raw orchestration: ~1,500–3,000 | typical 2–3 runs/day
 
 Run it yourself and Claude sees none of the version-bump, MOTD, and startup output.
@@ -88,7 +88,7 @@ the port is listening — reasoning the script does deterministically.
 ---
 
 zkill — Stop dev servers
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~660 tokens/run | est. raw orchestration: ~1,000–2,000 | typical 2–3 runs/day
 
 Raw, Claude would enumerate processes, kill them, and re-check the port is free.
@@ -100,7 +100,7 @@ The script collapses that to one command.
 ---
 
 zrestart — Restart in one command
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~1,267 tokens/run | est. raw orchestration: ~2,500–4,500 | typical 10–15 runs/day
 
 The most-used command during rapid iteration. Raw, it's stop → wait → start with
@@ -117,7 +117,7 @@ Build & Deployment
 ------------------
 
 zdeploy — Deploy to EC2
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~1,420 tokens/run cached (spikes to ~60,600 on a full rebuild) | est. raw orchestration: ~5,000–12,000 cached, ~61,000+ full rebuild | typical 10–15 runs/day
 
 The biggest lever — and the one where cache state matters most. The script streams
@@ -138,7 +138,7 @@ bound.
 ---
 
 zstart_docker — Start local Docker stack
-----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Not measured (est. ~900–2,600 tokens/run) | typical 1 run/day
 
 One-time setup per session; doesn't need agent involvement.
@@ -149,7 +149,7 @@ Backup & Sync
 -------------
 
 zbackup — Backup projects locally
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~763 tokens/run | est. raw orchestration: ~1,200–2,500 | typical 1–2 runs/day
 
 Raw, Claude enumerates files, decides exclusions, compresses, and stamps timestamps.
@@ -161,7 +161,7 @@ You decide when to snapshot.
 ---
 
 zsync — Sync backups offsite
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~1,346 tokens/run | est. raw orchestration: ~1,500–3,000 | typical 1 run/day
 
 Raw, Claude tracks file diffs, runs robocopy, and verifies the copy. You manage
@@ -173,7 +173,7 @@ cadence independently.
 ---
 
 zbackup_ec2 — Pull backups from the server
-------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~585 tokens/run | est. raw orchestration: ~1,000–2,000 | typical 1 run/day
 
 Separates database/app backup from code changes. Claude focuses on code; you manage
@@ -187,7 +187,7 @@ Diagnostics & Troubleshooting
 -----------------------------
 
 zec2 — Check EC2 reachability
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~579 tokens/run (zec2online: ~467) | est. raw orchestration: ~1,000–2,000 | typical 5–8 runs/day
 
 When a deploy fails you run this first to confirm EC2 is reachable and the right
@@ -201,7 +201,7 @@ over SSH. Runs frequently alongside zdeploy.
 ---
 
 zrepair — Audit & repair container routing
-------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Measured: ~637 tokens/run (clean audit) | est. raw orchestration: ~2,000–4,000 | typical 1–2 runs/day
 
 When a page 502s, this isolates routing vs. DNS vs. app logic across several

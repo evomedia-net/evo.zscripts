@@ -5,13 +5,17 @@ Licensed under the MIT License. See LICENSE.
 Changelog
 =========
 
-Notable changes to the evomedia.net Token Savers.
+Notable changes to the evomedia.net Token Savers, newest first.
+
+Versions have five parts, v{major}.{rc}.{beta}.{alpha}.{build}, and the build number
+advances once per release. New changes go under Unreleased in the same pull request,
+and the release moves them under its version.
 
 Unreleased
 ----------
 
 Fixed
------
+~~~~~
 
 - Token estimates were about 44% low. Every script's
   ~N tokens est. footer, token-count.ps1 and the ztokens records
@@ -39,11 +43,16 @@ Fixed
   ~26,500). Prices are updated to the current models: Haiku 5.5, Sonnet 5.5,
   Opus 5.5, Fable 5.1.
 
-v1.0.0.0.28 - 2026-09-22
-------------------------
+Documentation
+~~~~~~~~~~~~~
+
+- changelog: the fleet format, evo.polaris's with no date on version headings; the .txt twins underline a third-level heading with ~ (#99 (https://github.com/evomedia-net/evo.zscripts/pull/99))
+
+v1.0.0.0.28
+-----------
 
 Changed
--------
+~~~~~~~
 
 - **zec2 and zec2online comments now say what they mean without
   naming private detail.** The container-side version read is described
@@ -53,11 +62,11 @@ Changed
   and because it sits inside a try/catch the failure was silent and looked
   exactly like a service that could not be reached.
 
-v1.0.0.0.26 - 2026-09-14
-------------------------
+v1.0.0.0.26
+-----------
 
 Fixed
------
+~~~~~
 
 - **zdeploy on a docker stack built from source shipped nothing after the
   first deploy.** The docker kind ran docker compose pull and then
@@ -71,11 +80,11 @@ Fixed
   the base image is refreshed at the same time. Stacks that pull are
   unaffected.
 
-v1.0.0.0.25 - 2026-09-12
-------------------------
+v1.0.0.0.25
+-----------
 
 Added
------
+~~~~~
 
 - zmerge — merge every pull request across the org that is genuinely
   ready (MERGEABLE / CLEAN, not a draft), re-checking each one immediately
@@ -87,7 +96,7 @@ Added
   branch rather than guessing.
 
 Changed
--------
+~~~~~~~
 
 - -e is an alias for -Execute on both of the above, the way -s
   already works for -Scan.
@@ -99,11 +108,11 @@ Changed
   quietly scans nothing prints the same reassuring line as one that scanned
   everything, and the two must not be confusable.
 
-v1.0.0.0.24 - 2026-09-08
-------------------------
+v1.0.0.0.24
+-----------
 
 Added
------
+~~~~~
 - zdeploy can lay the release tag it already knows the number for.
   A versioning scheme that asks every release to carry an annotated tag needs
   something to enforce it, and for a project whose build number lives outside
@@ -118,7 +127,7 @@ Added
   command to finish it, and a missing repo just says so.
 
 Fixed
------
+~~~~~
 - The mirror stopped publishing current product names. Its own denylist
   never saw the current spellings (a dot or hyphen breaks the word, an
   underscore hides the boundary), so twelve references went out while the
@@ -135,11 +144,11 @@ Fixed
   from Invoke-DeployGitPull, on purpose. Fourteen tests drive real git
   under Stop on 5.1, the host the defect lives on (#130).
 
-v1.0.0.0.23 - 2026-08-31
-------------------------
+v1.0.0.0.23
+-----------
 
 Changed
--------
+~~~~~~~
 - Every release since 1.0.0 has its own section again - 21 entries had
   piled up under Unreleased while 22 builds shipped, so this file said
   nothing had been released since 1.0.0 and a reader at any tag found no
@@ -155,18 +164,18 @@ Changed
   and read as stray punctuation in a text file.
 
 Fixed
------
+~~~~~
 - The --check that keeps the twins honest is actually run now -
   readme_txt.py shipped one and its docstring claimed "the test suite runs
   --check", but nothing invoked it, so a twin could disagree with its
   markdown indefinitely. tests/PlainTextTwins.Tests.ps1 runs it, and
   reports inconclusive rather than passing when python is unavailable.
 
-v1.0.0.0.22 - 2026-08-31
-------------------------
+v1.0.0.0.22
+-----------
 
 Changed
--------
+~~~~~~~
 - The sanitization denylist moved to tests/sanitization-patterns.psd1,
   so the test suite here and the publisher in the private toolkit read one
   list instead of keeping two. They had two, and they disagreed: the
@@ -175,11 +184,11 @@ Changed
   names, operator paths. It therefore reported "clean" on files this suite
   rejects. No rule changed; only where they live.
 
-v1.0.0.0.21 - 2026-08-31
-------------------------
+v1.0.0.0.21
+-----------
 
 Added
------
+~~~~~
 - tests/VerifyPlan.Tests.ps1 — the verification channel-selection rules
   are pure functions in ZHelpers.ps1 (Get-VerifyAttempts,
   Get-VerifyTimeout) and Pester pins them, including "a project with no
@@ -191,7 +200,7 @@ Added
   edited by hand.
 
 Changed
--------
+~~~~~~~
 - **zdeploy verification picks its channel on every retry, and never asks
   the bare IP** — the check used to choose its channel once, before the wait
   loop, by probing; the probes raced the app restart the check exists to wait
@@ -222,11 +231,11 @@ Changed
   calls bypassed the wrapper that flattens this. All remote steps now run
   through it and are judged by exit code alone.
 
-v1.0.0.0.20 - 2026-08-30
-------------------------
+v1.0.0.0.20
+-----------
 
 Changed
--------
+~~~~~~~
 - **zversion bump is once per release, not once per PR** — the usage text
   and the bump help line both said "one per PR, one per defect fix". The
   build number names something that shipped, so a release carrying five PRs
@@ -236,11 +245,11 @@ Changed
   records what the rule was when zversion shipped, is deliberately left as
   written.
 
-v1.0.0.0.19 - 2026-08-30
-------------------------
+v1.0.0.0.19
+-----------
 
 Added
------
+~~~~~
 - **Read a live build from inside the docker network, not through the public
   proxy** — zdeploy, zec2 and zec2online now prefer
   docker exec <viaProxy> curl http://<upstream>/api/build-version when a
@@ -259,11 +268,11 @@ Added
   knows a version. Purely additive: projects without those two keys behave
   exactly as before.
 
-v1.0.0.0.14 - 2026-08-20
-------------------------
+v1.0.0.0.14
+-----------
 
 Fixed
------
+~~~~~
 - scp no longer receives an ssh-only flag — the stdin-hang fix added
   -n to Get-Ec2SshOpts, and the deploy path splats that same array into
   scp as well as ssh. OpenSSH's scp has no -n: it exits 1 with
@@ -276,11 +285,11 @@ Fixed
   without checking; it now points at scp's own output, where the real
   diagnosis already was.
 
-v1.0.0.0.8 - 2026-08-12
------------------------
+v1.0.0.0.8
+----------
 
 Fixed
------
+~~~~~
 - Deploys can no longer hang forever on an ssh prompt — every
   deploy-path ssh/scp now carries BatchMode=yes plus connect and
   keepalive timeouts (Get-Ec2SshOpts in ZHelpers.ps1). Without
@@ -313,11 +322,11 @@ Fixed
   recursively, and the ensure edge dir chown is recursive so scp into
   docker-created root-owned dirs cannot fail.
 
-v1.0.0.0.0 - 2026-07-28
------------------------
+v1.0.0.0.0
+----------
 
 Added
------
+~~~~~
 - Versioned releases: zversion, zrelease, releases/ — the toolkit now
   carries one version in a 5-segment scheme,
   v{major}.{rc}.{beta}.{alpha}.{build}. zversion bump (one per PR / defect
@@ -395,7 +404,7 @@ Added
   grew up on per-project switches.
 
 Changed
--------
+~~~~~~~
 - zbackup / zbackup_and_sync require an explicit target — running
   them bare now shows usage instead of quietly backing up every project;
   all does what bare invocation used to (matching zdeploy). The
@@ -418,7 +427,7 @@ Changed
   root-level .env.
 
 Fixed
------
+~~~~~
 - zdeploy no longer deletes operator-managed files on deploy (#2) —
   the project-directory replacement preserved only ./.env, silently
   destroying every other server-side file (.env.db, staged signing
