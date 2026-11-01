@@ -21,7 +21,7 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 . (Join-Path $ScriptRoot "ZHelpers.ps1")
 Start-ZTracking
-# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+# Tracking ends on every exit, even a throw or Ctrl+C (#219); body not re-indented.
 try {
 
 # Tolerate switch-style args from muscle memory; require an explicit target

@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ZHelpers.ps1")
 Start-ZTracking
-# Tracking ends on every exit, even a throw or Ctrl+C; body not re-indented.
+# Tracking ends on every exit, even a throw or Ctrl+C (#219); body not re-indented.
 try {
 
 $Projects = @($Projects | ForEach-Object { $_.TrimStart('-') })
