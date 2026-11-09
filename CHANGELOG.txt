@@ -46,6 +46,7 @@ Fixed
 Documentation
 ~~~~~~~~~~~~~
 
+- The publish check now rejects a workstation path the way a shell writes it, and a profile that names a person. The drive-path rule needed a drive letter and a backslash, so WSL's /mnt/<drive>/ view and Git Bash's /<drive>/ view went straight past it - and those are the spellings a pasted bash command carries, which is how such a path reaches a file in the first place. A Windows profile under a real user name is rejected too, while the placeholders the README and zconfig.example.json need stay allowed, with their own test so a later tightening cannot quietly make the setup instructions unwritable (#101 (https://github.com/evomedia-net/evo.zscripts/pull/101))
 - changelog: the fleet format, evo.polaris's with no date on version headings; the .txt twins underline a third-level heading with ~ (#99 (https://github.com/evomedia-net/evo.zscripts/pull/99))
 
 v1.0.0.0.28

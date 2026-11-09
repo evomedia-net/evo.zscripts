@@ -80,6 +80,8 @@ Describe "public repo carries no private detail" {
         @{ Name = 'private product domain' }
         @{ Name = 'private-only script' }
         @{ Name = 'local drive path' }
+        @{ Name = 'shell drive path' }
+        @{ Name = 'operator profile path' }
         @{ Name = 'operator home path' }
         @{ Name = 'real pem key name' }
         @{ Name = 'non-documentation IP' }
@@ -94,6 +96,10 @@ Describe "public repo carries no private detail" {
         @{ Rule = 'current product name';     Sample = 'evo-ai answers version on /health' }
         @{ Rule = 'current product name';     Sample = 'upstream evoehs_app:80' }
         @{ Rule = 'internal issue reference'; Sample = 'see evo.scripts#101 for the trap' }
+        @{ Rule = 'shell drive path';         Sample = 'cd /mnt/x/evomedia.net/some-repo' }
+        @{ Rule = 'shell drive path';         Sample = 'ls /x/evomedia.net/some-repo' }
+        @{ Rule = 'operator profile path';    Sample = 'cd C:\Users\Someone Else\Desktop' }
+        @{ Rule = 'operator profile path';    Sample = '"key": "D:\\Users\\Someone\\.ssh\\id" ' }
     ) {
         # The rename went past the old pattern: the dot and the hyphen break
         # the word and the underscore hides the boundary, so a suite that ran
@@ -106,6 +112,18 @@ Describe "public repo carries no private detail" {
     It "still allows this repo's own name" {
         $pattern = ($script:Denied | Where-Object { $_.Name -eq 'current product name' }).Pattern
         ('https://github.com/evomedia-net/evo.zscripts' -match $pattern) | Should -BeFalse
+    }
+
+    It "still allows the profile placeholder <Sample>" -ForEach @(
+        @{ Sample = '"pemKey":    "C:\\Users\\You\\.ssh\\key.pem",' }
+        @{ Sample = '"pemKey": "C:\\Users\\YourUser\\.ssh\\evomedia.pem",' }
+        @{ Sample = 'unzip to C:\Users\Public\Downloads' }
+    ) {
+        # The setup instructions have to be able to show a reader where their
+        # own key lives. A rule that flags the placeholder along with the real
+        # thing does not get tightened later - it gets deleted.
+        $pattern = ($script:Denied | Where-Object { $_.Name -eq 'operator profile path' }).Pattern
+        ($Sample -match $pattern) | Should -BeFalse
     }
 
     It "still detects a planted violation" {
