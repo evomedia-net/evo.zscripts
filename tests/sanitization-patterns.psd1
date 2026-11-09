@@ -39,7 +39,20 @@
         @{ Name = 'private product domain'; Pattern = '\b(smart[p]lantehs\.com|provensheet\.com|evoehs\.com|civilcode\.evomedia\.net|dashboard\.evomedia\.net|webmail\.evomedia\.net|mail-admin\.evomedia\.net|docketmail\.evomedia\.net|cardiff\.evomedia\.net|platform\.evomedia\.net|ai\.evomedia\.net|git\.evomedia\.net|analytics\.evomedia\.net)\b' }
         @{ Name = 'private-only script';    Pattern = '\b(register_civilcode|register_docketmail|sp_seed_demo_prod|zpublish_stats|zcoverage|zresume|swag_set_owner|provision_demo|apply_platform_config_fixes)\b' }
         @{ Name = 'local drive path';       Pattern = '[A-Za-z]:\\\\?evomedia\.net' }
+        # The same workspace as a shell sees it. The rule above needs a drive
+        # letter and a backslash, so WSL's and Git Bash's views of that drive
+        # went straight past it - and those are the spellings that appear in a
+        # pasted bash command, which is how these paths get into a document in
+        # the first place.
+        @{ Name = 'shell drive path';       Pattern = '(?:/mnt)?/[a-z]/evomedia\.net' }
         @{ Name = 'operator home path';     Pattern = '/home/ubuntu/' }
+        # A Windows profile belonging to a person, which names the operator.
+        # The placeholders a reader is meant to substitute stay allowed -
+        # zconfig.example.json and the README both need one, and a rule that
+        # cannot tell them apart would make the setup instructions unwritable.
+        # A name is matched only when a single separator follows it, so the
+        # doubled backslashes of a JSON example are not mistaken for one.
+        @{ Name = 'operator profile path';  Pattern = '[A-Za-z]:\\{1,2}Users\\{1,2}(?!(?:You|YourUser|YourName|Username|User|Public|Default|Administrator)\\)[A-Za-z]' }
         @{ Name = 'real pem key name';      Pattern = 'evomedia-prod\.pem' }
         # RFC 5737 reserves 203.0.113.0/24 for documentation - that one is the
         # correct placeholder and must stay allowed, as are loopback and the

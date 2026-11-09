@@ -1,0 +1,688 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="315" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="1" invalid="0" date="2026-11-09" time="11:42:31">
+  <environment clr-version="4.0.30319.42000" user-domain="REZ" cwd="F:\evomedia.net\wt\zscripts-paths" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk3\Partition4" machine-name="REZ" nunit-version="2.5.8.0" os-version="10.0.26300" user="Kelly Michels" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Ignored" success="True" time="266.4613" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\ArgumentParsing.Tests.ps1" executed="True" result="Success" success="True" time="82.0984" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\ArgumentParsing.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="no arguments shows usage and exits non-zero" executed="True" result="Success" success="True" time="21.776" asserts="0" description="no arguments shows usage and exits non-zero">
+            <results>
+              <test-suite type="ParameterizedTest" name="no arguments shows usage and exits non-zero.&lt;_&gt; refuses to run bare" executed="True" result="Success" success="True" time="21.6093" asserts="0" description="&lt;_&gt; refuses to run bare">
+                <results>
+                  <test-case description="zstart.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zstart.ps1 refuses to run bare" time="3.3865" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ZKillOnly.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.ZKillOnly.ps1 refuses to run bare" time="2.3197" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zdeploy.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zdeploy.ps1 refuses to run bare" time="2.916" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zbackup.ps1 refuses to run bare" time="1.9034" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup_ec2.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zbackup_ec2.ps1 refuses to run bare" time="2.2795" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zec2.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zec2.ps1 refuses to run bare" time="1.9885" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zec2online.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zec2online.ps1 refuses to run bare" time="1.8412" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zrepair.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zrepair.ps1 refuses to run bare" time="1.7388" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zstop.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zstop.ps1 refuses to run bare" time="1.5505" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup_and_sync.ps1 refuses to run bare" name="no arguments shows usage and exits non-zero.zbackup_and_sync.ps1 refuses to run bare" time="1.6851" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="no arguments shows usage and exits non-zero.&lt;_&gt; lists the available project keys in its usage" executed="True" result="Success" success="True" time="0.0619" asserts="0" description="&lt;_&gt; lists the available project keys in its usage">
+                <results>
+                  <test-case description="zstart.ps1 lists the available project keys in its usage" name="no arguments shows usage and exits non-zero.zstart.ps1 lists the available project keys in its usage" time="0.0449" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ZKillOnly.ps1 lists the available project keys in its usage" name="no arguments shows usage and exits non-zero.ZKillOnly.ps1 lists the available project keys in its usage" time="0.0057" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zdeploy.ps1 lists the available project keys in its usage" name="no arguments shows usage and exits non-zero.zdeploy.ps1 lists the available project keys in its usage" time="0.0055" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup.ps1 lists the available project keys in its usage" name="no arguments shows usage and exits non-zero.zbackup.ps1 lists the available project keys in its usage" time="0.0058" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="no arguments shows usage and exits non-zero.usage never advertises the underscore comment key" executed="True" result="Success" success="True" time="0.0354" asserts="0" description="usage never advertises the underscore comment key">
+                <results>
+                  <test-case description="usage never advertises the underscore comment key" name="no arguments shows usage and exits non-zero.usage never advertises the underscore comment key()" time="0.0167" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="usage never advertises the underscore comment key" name="no arguments shows usage and exits non-zero.usage never advertises the underscore comment key()" time="0.0044" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="usage never advertises the underscore comment key" name="no arguments shows usage and exits non-zero.usage never advertises the underscore comment key()" time="0.0062" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="usage never advertises the underscore comment key" name="no arguments shows usage and exits non-zero.usage never advertises the underscore comment key()" time="0.0081" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="unknown project key fails loudly" executed="True" result="Success" success="True" time="58.5572" asserts="0" description="unknown project key fails loudly">
+            <results>
+              <test-case description="the underscore comment key is not addressable as a project" name="unknown project key fails loudly.the underscore comment key is not addressable as a project" time="1.5332" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="unknown project key fails loudly.&lt;_&gt; rejects a key that is not in the config" executed="True" result="Success" success="True" time="35.1708" asserts="0" description="&lt;_&gt; rejects a key that is not in the config">
+                <results>
+                  <test-case description="zstart.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zstart.ps1 rejects a key that is not in the config" time="1.7809" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ZKillOnly.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.ZKillOnly.ps1 rejects a key that is not in the config" time="1.5744" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zdeploy.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zdeploy.ps1 rejects a key that is not in the config" time="2.6607" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zbackup.ps1 rejects a key that is not in the config" time="1.8213" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zbackup_ec2.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zbackup_ec2.ps1 rejects a key that is not in the config" time="9.1" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zec2.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zec2.ps1 rejects a key that is not in the config" time="8.4474" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zec2online.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zec2online.ps1 rejects a key that is not in the config" time="6.621" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zrepair.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zrepair.ps1 rejects a key that is not in the config" time="1.6104" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zstop.ps1 rejects a key that is not in the config" name="unknown project key fails loudly.zstop.ps1 rejects a key that is not in the config" time="1.5547" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="unknown project key fails loudly.&lt;_&gt; names the offending key and the valid ones" executed="True" result="Success" success="True" time="0.0596" asserts="0" description="&lt;_&gt; names the offending key and the valid ones">
+                <results>
+                  <test-case description="zstart.ps1 names the offending key and the valid ones" name="unknown project key fails loudly.zstart.ps1 names the offending key and the valid ones" time="0.0472" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ZKillOnly.ps1 names the offending key and the valid ones" name="unknown project key fails loudly.ZKillOnly.ps1 names the offending key and the valid ones" time="0.0071" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zdeploy.ps1 names the offending key and the valid ones" name="unknown project key fails loudly.zdeploy.ps1 names the offending key and the valid ones" time="0.0053" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="leading-dash tolerance" executed="True" result="Success" success="True" time="64.0866" asserts="0" description="leading-dash tolerance">
+            <results>
+              <test-suite type="ParameterizedTest" name="leading-dash tolerance.&lt;_&gt; strips a leading dash before resolving the key" executed="True" result="Success" success="True" time="5.5186" asserts="0" description="&lt;_&gt; strips a leading dash before resolving the key">
+                <results>
+                  <test-case description="zstart.ps1 strips a leading dash before resolving the key" name="leading-dash tolerance.zstart.ps1 strips a leading dash before resolving the key" time="1.5893" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="ZKillOnly.ps1 strips a leading dash before resolving the key" name="leading-dash tolerance.ZKillOnly.ps1 strips a leading dash before resolving the key" time="1.6656" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="zdeploy.ps1 strips a leading dash before resolving the key" name="leading-dash tolerance.zdeploy.ps1 strips a leading dash before resolving the key" time="2.2638" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="zkill target resolution (safe: fixture ports are unused)" executed="True" result="Success" success="True" time="80.8682" asserts="0" description="zkill target resolution (safe: fixture ports are unused)">
+            <results>
+              <test-case description="accepts a bare project key" name="zkill target resolution (safe: fixture ports are unused).accepts a bare project key" time="2.064" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="accepts the same key with a leading dash and behaves identically" name="zkill target resolution (safe: fixture ports are unused).accepts the same key with a leading dash and behaves identically" time="1.9212" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="accepts several keys at once" name="zkill target resolution (safe: fixture ports are unused).accepts several keys at once" time="1.81" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="'all' expands to every project that has a dev port" name="zkill target resolution (safe: fixture ports are unused).'all' expands to every project that has a dev port" time="1.8255" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="'all' skips projects with no dev port (edge/docker stacks)" name="zkill target resolution (safe: fixture ports are unused).'all' skips projects with no dev port (edge/docker stacks)" time="0.0233" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="'-all' works the same as 'all'" name="zkill target resolution (safe: fixture ports are unused).'-all' works the same as 'all'" time="3.2075" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="reports the port it inspected rather than failing on an idle port" name="zkill target resolution (safe: fixture ports are unused).reports the port it inspected rather than failing on an idle port" time="3.1293" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="-Port overrides the configured dev port" name="zkill target resolution (safe: fixture ports are unused).-Port overrides the configured dev port" time="2.7873" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\Checksums.Tests.ps1" executed="True" result="Success" success="True" time="4.3091" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\Checksums.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="CHECKSUMS.txt" executed="True" result="Success" success="True" time="0.1453" asserts="0" description="CHECKSUMS.txt">
+            <results>
+              <test-case description="exists" name="CHECKSUMS.txt.exists" time="0.0222" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is sha256sum-compatible: 64 hex chars, two spaces, then the filename" name="CHECKSUMS.txt.is sha256sum-compatible: 64 hex chars, two spaces, then the filename" time="0.0698" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="uses LF line endings" name="CHECKSUMS.txt.uses LF line endings" time="0.019" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is sorted by filename" name="CHECKSUMS.txt.is sorted by filename" time="0.0216" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="manifest matches what is on disk" executed="True" result="Success" success="True" time="0.6875" asserts="0" description="manifest matches what is on disk">
+            <results>
+              <test-case description="lists every top-level .ps1 / .cmd (nothing silently uncovered)" name="manifest matches what is on disk.lists every top-level .ps1 / .cmd (nothing silently uncovered)" time="0.0477" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="lists nothing that no longer exists" name="manifest matches what is on disk.lists nothing that no longer exists" time="0.032" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="manifest matches what is on disk.records the current hash of &lt;_&gt;" executed="True" result="Success" success="True" time="0.4459" asserts="0" description="records the current hash of &lt;_&gt;">
+                <results>
+                  <test-case description="records the current hash of setup_backup_schedule.ps1" name="manifest matches what is on disk.records the current hash of setup_backup_schedule.ps1" time="0.0818" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of token-count.ps1" name="manifest matches what is on disk.records the current hash of token-count.ps1" time="0.0101" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zbackup.cmd" name="manifest matches what is on disk.records the current hash of zbackup.cmd" time="0.007" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zbackup.ps1" name="manifest matches what is on disk.records the current hash of zbackup.ps1" time="0.0072" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zbackup_and_sync.ps1" name="manifest matches what is on disk.records the current hash of zbackup_and_sync.ps1" time="0.0072" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zbackup_ec2.cmd" name="manifest matches what is on disk.records the current hash of zbackup_ec2.cmd" time="0.0098" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zbackup_ec2.ps1" name="manifest matches what is on disk.records the current hash of zbackup_ec2.ps1" time="0.0077" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zchecksums.cmd" name="manifest matches what is on disk.records the current hash of zchecksums.cmd" time="0.0118" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zchecksums.ps1" name="manifest matches what is on disk.records the current hash of zchecksums.ps1" time="0.0074" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zdeploy.cmd" name="manifest matches what is on disk.records the current hash of zdeploy.cmd" time="0.0099" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zdeploy.ps1" name="manifest matches what is on disk.records the current hash of zdeploy.ps1" time="0.009" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2.cmd" name="manifest matches what is on disk.records the current hash of zec2.cmd" time="0.0084" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2.ps1" name="manifest matches what is on disk.records the current hash of zec2.ps1" time="0.0079" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2_rotatekeys.cmd" name="manifest matches what is on disk.records the current hash of zec2_rotatekeys.cmd" time="0.0101" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2_rotatekeys.ps1" name="manifest matches what is on disk.records the current hash of zec2_rotatekeys.ps1" time="0.0088" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2online.cmd" name="manifest matches what is on disk.records the current hash of zec2online.cmd" time="0.0078" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zec2online.ps1" name="manifest matches what is on disk.records the current hash of zec2online.ps1" time="0.0075" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of ZHelpers.ps1" name="manifest matches what is on disk.records the current hash of ZHelpers.ps1" time="0.0077" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zkill.cmd" name="manifest matches what is on disk.records the current hash of zkill.cmd" time="0.0076" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zkill.ps1" name="manifest matches what is on disk.records the current hash of zkill.ps1" time="0.0088" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of ZKiller.ps1" name="manifest matches what is on disk.records the current hash of ZKiller.ps1" time="0.0094" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of ZKillOnly.ps1" name="manifest matches what is on disk.records the current hash of ZKillOnly.ps1" time="0.0074" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zmerge.ps1" name="manifest matches what is on disk.records the current hash of zmerge.ps1" time="0.0075" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zpull.cmd" name="manifest matches what is on disk.records the current hash of zpull.cmd" time="0.0071" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zpull.ps1" name="manifest matches what is on disk.records the current hash of zpull.ps1" time="0.0086" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrelease.cmd" name="manifest matches what is on disk.records the current hash of zrelease.cmd" time="0.0077" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrelease.ps1" name="manifest matches what is on disk.records the current hash of zrelease.ps1" time="0.0074" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrepair.cmd" name="manifest matches what is on disk.records the current hash of zrepair.cmd" time="0.0072" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrepair.ps1" name="manifest matches what is on disk.records the current hash of zrepair.ps1" time="0.0091" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrestart.cmd" name="manifest matches what is on disk.records the current hash of zrestart.cmd" time="0.0071" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrestart.ps1" name="manifest matches what is on disk.records the current hash of zrestart.ps1" time="0.008" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zrestartd.cmd" name="manifest matches what is on disk.records the current hash of zrestartd.cmd" time="0.0074" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zsetup.cmd" name="manifest matches what is on disk.records the current hash of zsetup.cmd" time="0.0101" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zsetup.ps1" name="manifest matches what is on disk.records the current hash of zsetup.ps1" time="0.0133" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zsetup_mail.ps1" name="manifest matches what is on disk.records the current hash of zsetup_mail.ps1" time="0.0117" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstart.cmd" name="manifest matches what is on disk.records the current hash of zstart.cmd" time="0.0074" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstart.ps1" name="manifest matches what is on disk.records the current hash of zstart.ps1" time="0.0073" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstart_docker.cmd" name="manifest matches what is on disk.records the current hash of zstart_docker.cmd" time="0.0077" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstart_docker.ps1" name="manifest matches what is on disk.records the current hash of zstart_docker.ps1" time="0.0086" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstartd.cmd" name="manifest matches what is on disk.records the current hash of zstartd.cmd" time="0.0067" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zstop.ps1" name="manifest matches what is on disk.records the current hash of zstop.ps1" time="0.0068" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zsync.cmd" name="manifest matches what is on disk.records the current hash of zsync.cmd" time="0.0066" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zsync.ps1" name="manifest matches what is on disk.records the current hash of zsync.ps1" time="0.0086" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zversion.cmd" name="manifest matches what is on disk.records the current hash of zversion.cmd" time="0.0067" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="records the current hash of zversion.ps1" name="manifest matches what is on disk.records the current hash of zversion.ps1" time="0.0071" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="zchecksums.ps1" executed="True" result="Success" success="True" time="4.023" asserts="0" description="zchecksums.ps1">
+            <results>
+              <test-case description="verifies clean and exits 0 against the committed manifest" name="zchecksums.ps1.verifies clean and exits 0 against the committed manifest" time="1.1134" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="exits non-zero when a covered file has been tampered with" name="zchecksums.ps1.exits non-zero when a covered file has been tampered with" time="2.212" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\DeployTag.Tests.ps1" executed="True" result="Success" success="True" time="80.8186" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\DeployTag.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="New-DeployTag" executed="True" result="Success" success="True" time="70.9166" asserts="0" description="New-DeployTag">
+            <results>
+              <test-case description="tags the deployed commit and pushes it" name="New-DeployTag.tags the deployed commit and pushes it" time="24.9182" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="writes an ANNOTATED tag carrying the version and the note" name="New-DeployTag.writes an ANNOTATED tag carrying the version and the note" time="9.5514" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="points the tag at the commit that was deployed" name="New-DeployTag.points the tag at the commit that was deployed" time="6.172" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does nothing at all unless the project opts in" name="New-DeployTag.does nothing at all unless the project opts in" time="11.0905" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="leaves an existing tag alone rather than failing a redeploy" name="New-DeployTag.leaves an existing tag alone rather than failing a redeploy" time="6.2847" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="never throws when the directory is not a git repo" name="New-DeployTag.never throws when the directory is not a git repo" time="0.0209" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="never throws when the push fails, and still writes the tag locally" name="New-DeployTag.never throws when the push fails, and still writes the tag locally" time="7.4248" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="survives the deploy-wide ErrorActionPreference of Stop" name="New-DeployTag.survives the deploy-wide ErrorActionPreference of Stop" time="5.4427" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-DeployStampFiles" executed="True" result="Success" success="True" time="78.9615" asserts="0" description="Get-DeployStampFiles">
+            <results>
+              <test-case description="covers every changelog name the fleet actually writes" name="Get-DeployStampFiles.covers every changelog name the fleet actually writes" time="0.0314" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does not count a stamp the deploy just wrote as an uncommitted change" name="Get-DeployStampFiles.does not count a stamp the deploy just wrote as an uncommitted change" time="3.8079" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still reports real source changes" name="Get-DeployStampFiles.still reports real source changes" time="4.1934" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\DockerImageStep.Tests.ps1" executed="True" result="Success" success="True" time="0.465" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\DockerImageStep.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Get-DockerImageStep - build here, or pull from a registry" executed="True" result="Success" success="True" time="0.217" asserts="0" description="Get-DockerImageStep - build here, or pull from a registry">
+            <results>
+              <test-case description="pulls by default, so every existing docker stack is unaffected" name="Get-DockerImageStep - build here, or pull from a registry.pulls by default, so every existing docker stack is unaffected" time="0.0366" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="pulls for a project with no deploy block at all" name="Get-DockerImageStep - build here, or pull from a registry.pulls for a project with no deploy block at all" time="0.0189" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="builds when the project asks to be built" name="Get-DockerImageStep - build here, or pull from a registry.builds when the project asks to be built" time="0.0201" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still pulls when build is explicitly false" name="Get-DockerImageStep - build here, or pull from a registry.still pulls when build is explicitly false" time="0.0185" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="refreshes the base image on a build, so a rebuild is not pinned to the first one" name="Get-DockerImageStep - build here, or pull from a registry.refreshes the base image on a build, so a rebuild is not pinned to the first one" time="0.0141" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="Get-DockerImageStep - build here, or pull from a registry.runs in the project directory: &lt;Build&gt;" executed="True" result="Success" success="True" time="0.0542" asserts="0" description="runs in the project directory: &lt;Build&gt;">
+                <results>
+                  <test-case description="runs in the project directory: $true" name="Get-DockerImageStep - build here, or pull from a registry.runs in the project directory: $true" time="0.0439" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="runs in the project directory: $false" name="Get-DockerImageStep - build here, or pull from a registry.runs in the project directory: $false" time="0.0103" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="Get-DockerImageStep - build here, or pull from a registry.labels the step with what it actually does: &lt;Build&gt;" executed="True" result="Success" success="True" time="0.033" asserts="0" description="labels the step with what it actually does: &lt;Build&gt;">
+                <results>
+                  <test-case description="labels the step with what it actually does: $true" name="Get-DockerImageStep - build here, or pull from a registry.labels the step with what it actually does: $true" time="0.0248" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="labels the step with what it actually does: $false" name="Get-DockerImageStep - build here, or pull from a registry.labels the step with what it actually does: $false" time="0.0082" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="the docker deploy uses it" executed="True" result="Success" success="True" time="0.2562" asserts="0" description="the docker deploy uses it">
+            <results>
+              <test-case description="no longer hardcodes compose pull" name="the docker deploy uses it.no longer hardcodes compose pull" time="0.025" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\LinkPreview.Tests.ps1" executed="True" result="Success" success="True" time="0.4545" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\LinkPreview.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="zscripts.evomedia.net link preview" executed="True" result="Success" success="True" time="0.2066" asserts="0" description="zscripts.evomedia.net link preview">
+            <results>
+              <test-case description="carries the tags a card is built from" name="zscripts.evomedia.net link preview.carries the tags a card is built from" time="0.0341" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="gives absolute URLs, which the strict crawlers require" name="zscripts.evomedia.net link preview.gives absolute URLs, which the strict crawlers require" time="0.0222" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="points og:url at the same place as the canonical" name="zscripts.evomedia.net link preview.points og:url at the same place as the canonical" time="0.0223" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="publishes the card beside the page" name="zscripts.evomedia.net link preview.publishes the card beside the page" time="0.0182" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="serves a card that is the size the tags claim" name="zscripts.evomedia.net link preview.serves a card that is the size the tags claim" time="0.0392" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does not advertise a command this repo does not ship" name="zscripts.evomedia.net link preview.does not advertise a command this repo does not ship" time="0.0591" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\NewProjectArchive.Tests.ps1" executed="True" result="Success" success="True" time="5.0404" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\NewProjectArchive.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="New-ProjectArchive - basic packaging" executed="True" result="Success" success="True" time="0.53" asserts="0" description="New-ProjectArchive - basic packaging">
+            <results>
+              <test-case description="includes ordinary project files" name="New-ProjectArchive - basic packaging.includes ordinary project files" time="0.2046" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="preserves nested structure with forward slashes (zip convention)" name="New-ProjectArchive - basic packaging.preserves nested structure with forward slashes (zip convention)" time="0.0607" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="throws when the source directory does not exist" name="New-ProjectArchive - basic packaging.throws when the source directory does not exist" time="0.0595" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="throws rather than shipping an empty archive when everything is filtered out" name="New-ProjectArchive - basic packaging.throws rather than shipping an empty archive when everything is filtered out" time="0.0666" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="overwrites an existing zip at the destination" name="New-ProjectArchive - basic packaging.overwrites an existing zip at the destination" time="0.0697" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="creates the destination directory when it does not exist" name="New-ProjectArchive - basic packaging.creates the destination directory when it does not exist" time="0.0557" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - TopLevelExclude" executed="True" result="Success" success="True" time="0.9452" asserts="0" description="New-ProjectArchive - TopLevelExclude">
+            <results>
+              <test-case description="drops an excluded top-level file" name="New-ProjectArchive - TopLevelExclude.drops an excluded top-level file" time="0.059" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="drops an excluded top-level directory and everything under it" name="New-ProjectArchive - TopLevelExclude.drops an excluded top-level directory and everything under it" time="0.12" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does NOT exclude a nested file that merely shares an excluded name" name="New-ProjectArchive - TopLevelExclude.does NOT exclude a nested file that merely shares an excluded name" time="0.0924" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="excludes several names at once" name="New-ProjectArchive - TopLevelExclude.excludes several names at once" time="0.0743" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is unaffected by an exclude naming something that isn't there" name="New-ProjectArchive - TopLevelExclude.is unaffected by an exclude naming something that isn't there" time="0.0579" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - recursive junk pruning" executed="True" result="Success" success="True" time="2.1918" asserts="0" description="New-ProjectArchive - recursive junk pruning">
+            <results>
+              <test-case description="prunes a junk directory nested several levels deep" name="New-ProjectArchive - recursive junk pruning.prunes a junk directory nested several levels deep" time="0.0907" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps a file whose name merely contains a junk directory name" name="New-ProjectArchive - recursive junk pruning.keeps a file whose name merely contains a junk directory name" time="0.0657" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps a directory whose name merely starts with a junk directory name" name="New-ProjectArchive - recursive junk pruning.keeps a directory whose name merely starts with a junk directory name" time="0.0818" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '&lt;_&gt;' (TopLevelExclude cannot reach it)" executed="True" result="Success" success="True" time="0.6965" asserts="0" description="prunes nested junk directory '&lt;_&gt;' (TopLevelExclude cannot reach it)">
+                <results>
+                  <test-case description="prunes nested junk directory '.git' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.git' (TopLevelExclude cannot reach it)" time="0.1112" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory 'node_modules' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory 'node_modules' (TopLevelExclude cannot reach it)" time="0.0794" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '__pycache__' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '__pycache__' (TopLevelExclude cannot reach it)" time="0.0611" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.pytest_cache' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.pytest_cache' (TopLevelExclude cannot reach it)" time="0.049" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.mypy_cache' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.mypy_cache' (TopLevelExclude cannot reach it)" time="0.0426" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.tox' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.tox' (TopLevelExclude cannot reach it)" time="0.0495" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.next' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.next' (TopLevelExclude cannot reach it)" time="0.0509" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.turbo' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.turbo' (TopLevelExclude cannot reach it)" time="0.0574" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory 'coverage' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory 'coverage' (TopLevelExclude cannot reach it)" time="0.0526" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory 'htmlcov' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory 'htmlcov' (TopLevelExclude cannot reach it)" time="0.0462" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.idea' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.idea' (TopLevelExclude cannot reach it)" time="0.0477" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes nested junk directory '.vscode' (TopLevelExclude cannot reach it)" name="New-ProjectArchive - recursive junk pruning.prunes nested junk directory '.vscode' (TopLevelExclude cannot reach it)" time="0.0489" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory '&lt;_&gt;' even with no TopLevelExclude" executed="True" result="Success" success="True" time="0.2957" asserts="0" description="prunes top-level junk directory '&lt;_&gt;' even with no TopLevelExclude">
+                <results>
+                  <test-case description="prunes top-level junk directory '.git' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory '.git' even with no TopLevelExclude" time="0.0808" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes top-level junk directory 'node_modules' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory 'node_modules' even with no TopLevelExclude" time="0.0453" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes top-level junk directory '__pycache__' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory '__pycache__' even with no TopLevelExclude" time="0.0446" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes top-level junk directory '.idea' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory '.idea' even with no TopLevelExclude" time="0.0403" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes top-level junk directory '.vscode' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory '.vscode' even with no TopLevelExclude" time="0.041" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="prunes top-level junk directory 'coverage' even with no TopLevelExclude" name="New-ProjectArchive - recursive junk pruning.prunes top-level junk directory 'coverage' even with no TopLevelExclude" time="0.0437" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - file filters" executed="True" result="Success" success="True" time="3.668" asserts="0" description="New-ProjectArchive - file filters">
+            <results>
+              <test-case description="keeps a source file whose extension is not filtered" name="New-ProjectArchive - file filters.keeps a source file whose extension is not filtered" time="0.1002" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps an archive inside vendor/ - a vendored tarball is a build input" name="New-ProjectArchive - file filters.keeps an archive inside vendor/ - a vendored tarball is a build input" time="0.068" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps an archive in a nested vendor/ directory" name="New-ProjectArchive - file filters.keeps an archive in a nested vendor/ directory" time="0.0745" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still skips an archive outside vendor/ (the exemption is not global)" name="New-ProjectArchive - file filters.still skips an archive outside vendor/ (the exemption is not global)" time="0.062" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - file filters.skips junk extension '&lt;_&gt;'" executed="True" result="Success" success="True" time="0.667" asserts="0" description="skips junk extension '&lt;_&gt;'">
+                <results>
+                  <test-case description="skips junk extension '.log'" name="New-ProjectArchive - file filters.skips junk extension '.log'" time="0.0943" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.tmp'" name="New-ProjectArchive - file filters.skips junk extension '.tmp'" time="0.0549" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.bak'" name="New-ProjectArchive - file filters.skips junk extension '.bak'" time="0.0534" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.old'" name="New-ProjectArchive - file filters.skips junk extension '.old'" time="0.0507" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.orig'" name="New-ProjectArchive - file filters.skips junk extension '.orig'" time="0.0535" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.rej'" name="New-ProjectArchive - file filters.skips junk extension '.rej'" time="0.0517" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.swp'" name="New-ProjectArchive - file filters.skips junk extension '.swp'" time="0.046" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.pyc'" name="New-ProjectArchive - file filters.skips junk extension '.pyc'" time="0.0355" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.pyo'" name="New-ProjectArchive - file filters.skips junk extension '.pyo'" time="0.0412" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.tsbuildinfo'" name="New-ProjectArchive - file filters.skips junk extension '.tsbuildinfo'" time="0.0425" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.db'" name="New-ProjectArchive - file filters.skips junk extension '.db'" time="0.0492" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.sqlite'" name="New-ProjectArchive - file filters.skips junk extension '.sqlite'" time="0.0517" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips junk extension '.sqlite3'" name="New-ProjectArchive - file filters.skips junk extension '.sqlite3'" time="0.0424" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - file filters.skips nested archive '&lt;_&gt;' (no zips inside zips)" executed="True" result="Success" success="True" time="0.3256" asserts="0" description="skips nested archive '&lt;_&gt;' (no zips inside zips)">
+                <results>
+                  <test-case description="skips nested archive '.zip' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.zip' (no zips inside zips)" time="0.0627" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.tar' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.tar' (no zips inside zips)" time="0.0355" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.gz' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.gz' (no zips inside zips)" time="0.04" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.7z' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.7z' (no zips inside zips)" time="0.0435" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.rar' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.rar' (no zips inside zips)" time="0.0482" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.iso' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.iso' (no zips inside zips)" time="0.0518" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips nested archive '.jar' (no zips inside zips)" name="New-ProjectArchive - file filters.skips nested archive '.jar' (no zips inside zips)" time="0.0439" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - file filters.skips OS junk file '&lt;_&gt;'" executed="True" result="Success" success="True" time="0.1625" asserts="0" description="skips OS junk file '&lt;_&gt;'">
+                <results>
+                  <test-case description="skips OS junk file '.DS_Store'" name="New-ProjectArchive - file filters.skips OS junk file '.DS_Store'" time="0.0707" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips OS junk file 'Thumbs.db'" name="New-ProjectArchive - file filters.skips OS junk file 'Thumbs.db'" time="0.048" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips OS junk file 'desktop.ini'" name="New-ProjectArchive - file filters.skips OS junk file 'desktop.ini'" time="0.0439" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - IncludeScriptFiles" executed="True" result="Success" success="True" time="4.021" asserts="0" description="New-ProjectArchive - IncludeScriptFiles">
+            <results>
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - IncludeScriptFiles.skips &lt;_&gt; by default (local scripts are not part of a deploy)" executed="True" result="Success" success="True" time="0.1696" asserts="0" description="skips &lt;_&gt; by default (local scripts are not part of a deploy)">
+                <results>
+                  <test-case description="skips .ps1 by default (local scripts are not part of a deploy)" name="New-ProjectArchive - IncludeScriptFiles.skips .ps1 by default (local scripts are not part of a deploy)" time="0.0777" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips .cmd by default (local scripts are not part of a deploy)" name="New-ProjectArchive - IncludeScriptFiles.skips .cmd by default (local scripts are not part of a deploy)" time="0.0497" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="skips .bat by default (local scripts are not part of a deploy)" name="New-ProjectArchive - IncludeScriptFiles.skips .bat by default (local scripts are not part of a deploy)" time="0.0421" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="New-ProjectArchive - IncludeScriptFiles.includes &lt;_&gt; when -IncludeScriptFiles is set (backing up the scripts folder itself)" executed="True" result="Success" success="True" time="0.1723" asserts="0" description="includes &lt;_&gt; when -IncludeScriptFiles is set (backing up the scripts folder itself)">
+                <results>
+                  <test-case description="includes .ps1 when -IncludeScriptFiles is set (backing up the scripts folder itself)" name="New-ProjectArchive - IncludeScriptFiles.includes .ps1 when -IncludeScriptFiles is set (backing up the scripts folder itself)" time="0.0736" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="includes .cmd when -IncludeScriptFiles is set (backing up the scripts folder itself)" name="New-ProjectArchive - IncludeScriptFiles.includes .cmd when -IncludeScriptFiles is set (backing up the scripts folder itself)" time="0.0497" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="includes .bat when -IncludeScriptFiles is set (backing up the scripts folder itself)" name="New-ProjectArchive - IncludeScriptFiles.includes .bat when -IncludeScriptFiles is set (backing up the scripts folder itself)" time="0.049" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - ExtraFiles" executed="True" result="Success" success="True" time="4.1621" asserts="0" description="New-ProjectArchive - ExtraFiles">
+            <results>
+              <test-case description="adds a file from outside the source tree at the archive root" name="New-ProjectArchive - ExtraFiles.adds a file from outside the source tree at the archive root" time="0.0772" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="ignores an ExtraFiles entry that does not exist" name="New-ProjectArchive - ExtraFiles.ignores an ExtraFiles entry that does not exist" time="0.0534" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-ProjectArchive - realistic deploy shape" executed="True" result="Success" success="True" time="4.4502" asserts="0" description="New-ProjectArchive - realistic deploy shape">
+            <results>
+              <test-case description="produces a clean python deploy zip: source in, secrets and cruft out" name="New-ProjectArchive - realistic deploy shape.produces a clean python deploy zip: source in, secrets and cruft out" time="0.1845" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps secrets and uploads in a BACKUP of the same tree" name="New-ProjectArchive - realistic deploy shape.keeps secrets and uploads in a BACKUP of the same tree" time="0.0911" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\PlainTextTwins.Tests.ps1" executed="True" result="Ignored" success="True" time="0.7187" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\PlainTextTwins.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="plain-text twins" executed="True" result="Ignored" success="True" time="0.5245" asserts="0" description="plain-text twins">
+            <results>
+              <test-case description="the generator is where the tests and the docs say it is" name="plain-text twins.the generator is where the tests and the docs say it is" time="0.0076" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="every .md at the repository root has a twin" name="plain-text twins.every .md at the repository root has a twin" time="0.0306" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="every twin is in sync with its markdown" name="plain-text twins.every twin is in sync with its markdown" time="0.4706" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="reports the python that was missing rather than passing quietly" name="plain-text twins.reports the python that was missing rather than passing quietly" time="0.0042" asserts="0" success="False" result="Ignored" executed="False" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\Sanitization.Tests.ps1" executed="True" result="Success" success="True" time="1.1977" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\Sanitization.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="public repo carries no private detail" executed="True" result="Success" success="True" time="0.9222" asserts="0" description="public repo carries no private detail">
+            <results>
+              <test-case description="finds files to scan at all" name="public repo carries no private detail.finds files to scan at all" time="0.013" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still allows this repo's own name" name="public repo carries no private detail.still allows this repo's own name" time="0.193" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still detects a planted violation" name="public repo carries no private detail.still detects a planted violation" time="0.03" asserts="0" success="True" result="Success" executed="True" />
+              <test-suite type="ParameterizedTest" name="public repo carries no private detail.still allows the profile placeholder &lt;Sample&gt;" executed="True" result="Success" success="True" time="0.0326" asserts="0" description="still allows the profile placeholder &lt;Sample&gt;">
+                <results>
+                  <test-case description="still allows the profile placeholder &quot;pemKey&quot;:    &quot;C:\\Users\\You\\.ssh\\key.pem&quot;," name="public repo carries no private detail.still allows the profile placeholder &quot;pemKey&quot;:    &quot;C:\\Users\\You\\.ssh\\key.pem&quot;," time="0.0191" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="still allows the profile placeholder &quot;pemKey&quot;: &quot;C:\\Users\\YourUser\\.ssh\\evomedia.pem&quot;," name="public repo carries no private detail.still allows the profile placeholder &quot;pemKey&quot;: &quot;C:\\Users\\YourUser\\.ssh\\evomedia.pem&quot;," time="0.0053" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="still allows the profile placeholder unzip to C:\Users\Public\Downloads" name="public repo carries no private detail.still allows the profile placeholder unzip to C:\Users\Public\Downloads" time="0.0082" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="public repo carries no private detail.contains no &lt;Name&gt;" executed="True" result="Success" success="True" time="0.5678" asserts="0" description="contains no &lt;Name&gt;">
+                <results>
+                  <test-case description="contains no private project name" name="public repo carries no private detail.contains no private project name" time="0.0872" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no private product domain" name="public repo carries no private detail.contains no private product domain" time="0.0929" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no private-only script" name="public repo carries no private detail.contains no private-only script" time="0.0707" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no local drive path" name="public repo carries no private detail.contains no local drive path" time="0.0781" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no shell drive path" name="public repo carries no private detail.contains no shell drive path" time="0.0384" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no operator profile path" name="public repo carries no private detail.contains no operator profile path" time="0.0894" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no operator home path" name="public repo carries no private detail.contains no operator home path" time="0.0324" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no real pem key name" name="public repo carries no private detail.contains no real pem key name" time="0.0318" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="contains no non-documentation IP" name="public repo carries no private detail.contains no non-documentation IP" time="0.0469" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="ParameterizedTest" name="public repo carries no private detail.catches the current spelling &lt;Sample&gt;" executed="True" result="Success" success="True" time="0.0709" asserts="0" description="catches the current spelling &lt;Sample&gt;">
+                <results>
+                  <test-case description="catches the current spelling evo.ehs answers build_version" name="public repo carries no private detail.catches the current spelling evo.ehs answers build_version" time="0.0181" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling evo-ai answers version on /health" name="public repo carries no private detail.catches the current spelling evo-ai answers version on /health" time="0.0056" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling upstream evoehs_app:80" name="public repo carries no private detail.catches the current spelling upstream evoehs_app:80" time="0.0098" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling see evo.scripts#101 for the trap" name="public repo carries no private detail.catches the current spelling see evo.scripts#101 for the trap" time="0.0081" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling cd /mnt/x/evomedia.net/some-repo" name="public repo carries no private detail.catches the current spelling cd /mnt/x/evomedia.net/some-repo" time="0.0078" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling ls /x/evomedia.net/some-repo" name="public repo carries no private detail.catches the current spelling ls /x/evomedia.net/some-repo" time="0.0071" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling cd C:\Users\Someone Else\Desktop" name="public repo carries no private detail.catches the current spelling cd C:\Users\Someone Else\Desktop" time="0.0083" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="catches the current spelling &quot;key&quot;: &quot;D:\\Users\\Someone\\.ssh\\id&quot; " name="public repo carries no private detail.catches the current spelling &quot;key&quot;: &quot;D:\\Users\\Someone\\.ssh\\id&quot; " time="0.0062" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\StartGitPull.Tests.ps1" executed="True" result="Success" success="True" time="71.3247" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\StartGitPull.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Invoke-StartGitPull" executed="True" result="Success" success="True" time="68.8048" asserts="0" description="Invoke-StartGitPull">
+            <results>
+              <test-suite type="TestFixture" name="Invoke-StartGitPull.the reported case: origin has new commits" executed="True" result="Success" success="True" time="18.5529" asserts="0" description="Invoke-StartGitPull.the reported case: origin has new commits">
+                <results>
+                  <test-case description="the fixture really puts fetch progress on stderr - the shape of the bug" name="Invoke-StartGitPull.the reported case: origin has new commits.the fixture really puts fetch progress on stderr - the shape of the bug" time="5.5913" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="does not abort under ErrorActionPreference = 'Stop'" name="Invoke-StartGitPull.the reported case: origin has new commits.does not abort under ErrorActionPreference = 'Stop'" time="4.8517" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="reports success" name="Invoke-StartGitPull.the reported case: origin has new commits.reports success" time="0.0429" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="actually fast-forwarded the checkout" name="Invoke-StartGitPull.the reported case: origin has new commits.actually fast-forwarded the checkout" time="0.5912" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="leaves the caller's ErrorActionPreference as it found it" name="Invoke-StartGitPull.the reported case: origin has new commits.leaves the caller's ErrorActionPreference as it found it" time="1.2022" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Invoke-StartGitPull.nothing to fetch" executed="True" result="Success" success="True" time="24.9332" asserts="0" description="Invoke-StartGitPull.nothing to fetch">
+                <results>
+                  <test-case description="is Ok and says so, not a skip" name="Invoke-StartGitPull.nothing to fetch.is Ok and says so, not a skip" time="6.3529" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Invoke-StartGitPull.a pull that cannot complete" executed="True" result="Success" success="True" time="55.0022" asserts="0" description="Invoke-StartGitPull.a pull that cannot complete">
+                <results>
+                  <test-case description="diverged history is reported, not thrown, and the checkout is left alone" name="Invoke-StartGitPull.a pull that cannot complete.diverged history is reported, not thrown, and the checkout is left alone" time="18.5534" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="a branch with no upstream is skipped - and never switched away from" name="Invoke-StartGitPull.a pull that cannot complete.a branch with no upstream is skipped - and never switched away from" time="11.4796" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="a directory that is not a repo is skipped, not thrown" name="Invoke-StartGitPull.a pull that cannot complete.a directory that is not a repo is skipped, not thrown" time="0.0254" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Invoke-StartGitPull.housekeeping" executed="True" result="Success" success="True" time="68.7843" asserts="0" description="Invoke-StartGitPull.housekeeping">
+                <results>
+                  <test-case description="restores GIT_TERMINAL_PROMPT to whatever it was" name="Invoke-StartGitPull.housekeeping.restores GIT_TERMINAL_PROMPT to whatever it was" time="6.2019" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="returns to the directory it was called from" name="Invoke-StartGitPull.housekeeping.returns to the directory it was called from" time="7.5613" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="ZStart.ps1 uses the helper" executed="True" result="Success" success="True" time="68.8638" asserts="0" description="ZStart.ps1 uses the helper">
+            <results>
+              <test-case description="no longer carries its own redirected pull - the line that crashed" name="ZStart.ps1 uses the helper.no longer carries its own redirected pull - the line that crashed" time="0.0117" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="calls Invoke-StartGitPull" name="ZStart.ps1 uses the helper.calls Invoke-StartGitPull" time="0.0108" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="still tells the user when it skipped, and how to stop it trying" name="ZStart.ps1 uses the helper.still tells the user when it skipped, and how to stop it trying" time="0.0161" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\TokenEstimate.Tests.ps1" executed="True" result="Success" success="True" time="0.9784" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\TokenEstimate.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="the characters-per-token ratio" executed="True" result="Success" success="True" time="0.0376" asserts="0" description="the characters-per-token ratio">
+            <results>
+              <test-case description="is the measured figure, not the old prose heuristic" name="the characters-per-token ratio.is the measured figure, not the old prose heuristic" time="0.0163" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is named in the label every record carries" name="the characters-per-token ratio.is named in the label every record carries" time="0.0096" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Stop-ZTracking" executed="True" result="Success" success="True" time="0.6885" asserts="0" description="Stop-ZTracking">
+            <results>
+              <test-case description="prints and records the same estimate, at the measured ratio" name="Stop-ZTracking.prints and records the same estimate, at the measured ratio" time="0.4131" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="would have reported 44% fewer tokens at the old ratio" name="Stop-ZTracking.would have reported 44% fewer tokens at the old ratio" time="0.1866" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\TranscriptLeak.Tests.ps1" executed="True" result="Success" success="True" time="16.3633" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\TranscriptLeak.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="every tracked script ends tracking in a finally" executed="True" result="Success" success="True" time="0.1879" asserts="0" description="every tracked script ends tracking in a finally">
+            <results>
+              <test-case description="wraps everything after Start-ZTracking in try { } finally { Stop-ZTracking -IfActive }" name="every tracked script ends tracking in a finally.wraps everything after Start-ZTracking in try { } finally { Stop-ZTracking -IfActive }" time="0.1754" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="a run that leaves early" executed="True" result="Success" success="True" time="7.1927" asserts="0" description="a run that leaves early">
+            <results>
+              <test-case description="stops and deletes its transcript, and is still recorded, when it throws" name="a run that leaves early.stops and deletes its transcript, and is still recorded, when it throws" time="1.9366" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps the exit code, and prints the footer once, when it exits early" name="a run that leaves early.keeps the exit code, and prints the footer once, when it exits early" time="1.583" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does not stop tracking twice when the script already stopped it" name="a run that leaves early.does not stop tracking twice when the script already stopped it" time="1.7294" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="leaked before the fix - the shape the static test guards against" name="a run that leaves early.leaked before the fix - the shape the static test guards against" time="1.6832" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Start-ZTracking clears leftovers" executed="True" result="Success" success="True" time="16.0393" asserts="0" description="Start-ZTracking clears leftovers">
+            <results>
+              <test-case description="stops and deletes a transcript this window left running" name="Start-ZTracking clears leftovers.stops and deletes a transcript this window left running" time="2.7251" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="deletes another process's ended transcript once it is an hour old, and leaves a newer one" name="Start-ZTracking clears leftovers.deletes another process's ended transcript once it is an hour old, and leaves a newer one" time="2.6405" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="never deletes a transcript another live process holds open" name="Start-ZTracking clears leftovers.never deletes a transcript another live process holds open" time="3.4286" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Stop-ZTracking -IfActive" executed="True" result="Success" success="True" time="16.068" asserts="0" description="Stop-ZTracking -IfActive">
+            <results>
+              <test-case description="is silent when nothing is being tracked" name="Stop-ZTracking -IfActive.is silent when nothing is being tracked" time="0.0174" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\VerifyPlan.Tests.ps1" executed="True" result="Success" success="True" time="0.4595" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\VerifyPlan.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Get-VerifyAttempts" executed="True" result="Success" success="True" time="0.1766" asserts="0" description="Get-VerifyAttempts">
+            <results>
+              <test-case description="puts the docker-network read first when configured" name="Get-VerifyAttempts.puts the docker-network read first when configured" time="0.0354" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="never asks the edge for a project with no domain (the wrong-vhost trap)" name="Get-VerifyAttempts.never asks the edge for a project with no domain (the wrong-vhost trap)" time="0.0347" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns an empty plan when nothing trustworthy exists" name="Get-VerifyAttempts.returns an empty plan when nothing trustworthy exists" time="0.015" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps the edge for a project with a domain, with its Host header" name="Get-VerifyAttempts.keeps the edge for a project with a domain, with its Host header" time="0.0323" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="prefers deploy.verifyHost over domain for the edge Host header" name="Get-VerifyAttempts.prefers deploy.verifyHost over domain for the edge Host header" time="0.0127" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="carries the verify path into the port attempt, defaulting sensibly" name="Get-VerifyAttempts.carries the verify path into the port attempt, defaulting sensibly" time="0.0169" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="survives the PS 5.1 one-element unroll" name="Get-VerifyAttempts.survives the PS 5.1 one-element unroll" time="0.0161" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-VerifyTimeout" executed="True" result="Success" success="True" time="0.2252" asserts="0" description="Get-VerifyTimeout">
+            <results>
+              <test-case description="uses the caller's default when the project says nothing" name="Get-VerifyTimeout.uses the caller's default when the project says nothing" time="0.0127" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="lets a slow-booting project widen its own window" name="Get-VerifyTimeout.lets a slow-booting project widen its own window" time="0.0232" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="F:\evomedia.net\wt\zscripts-paths\tests\ZHelpers.Tests.ps1" executed="True" result="Success" success="True" time="2.2331" asserts="0" description="F:\evomedia.net\wt\zscripts-paths\tests\ZHelpers.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Get-ZConfigPath" executed="True" result="Success" success="True" time="0.0503" asserts="0" description="Get-ZConfigPath">
+            <results>
+              <test-case description="uses the ZCONFIG override when set" name="Get-ZConfigPath.uses the ZCONFIG override when set" time="0.0199" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="falls back to zconfig.json beside the scripts when ZCONFIG is unset" name="Get-ZConfigPath.falls back to zconfig.json beside the scripts when ZCONFIG is unset" time="0.0202" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-ZConfig" executed="True" result="Success" success="True" time="0.1552" asserts="0" description="Get-ZConfig">
+            <results>
+              <test-case description="loads the fixture pointed at by ZCONFIG" name="Get-ZConfig.loads the fixture pointed at by ZCONFIG" time="0.0348" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="memoises - a second call returns the same object instance" name="Get-ZConfig.memoises - a second call returns the same object instance" time="0.0265" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="re-reads after Reset-ZConfigCache" name="Get-ZConfig.re-reads after Reset-ZConfigCache" time="0.0297" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-ZProjectKeys" executed="True" result="Success" success="True" time="0.3177" asserts="0" description="Get-ZProjectKeys">
+            <results>
+              <test-case description="returns every project key in config order" name="Get-ZProjectKeys.returns every project key in config order" time="0.1321" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="omits underscore-prefixed comment keys" name="Get-ZProjectKeys.omits underscore-prefixed comment keys" time="0.0187" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-ZProject" executed="True" result="Success" success="True" time="0.3908" asserts="0" description="Get-ZProject">
+            <results>
+              <test-case description="returns the project for a known key" name="Get-ZProject.returns the project for a known key" time="0.0232" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="tolerates a leading dash (-pyapp resolves the same as pyapp)" name="Get-ZProject.tolerates a leading dash (-pyapp resolves the same as pyapp)" time="0.018" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is case-insensitive on the key, as PowerShell property access is" name="Get-ZProject.is case-insensitive on the key, as PowerShell property access is" time="0.0187" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-ZEdgeProject" executed="True" result="Success" success="True" time="0.4572" asserts="0" description="Get-ZEdgeProject">
+            <results>
+              <test-case description="finds the first edge-kind project and reports its key" name="Get-ZEdgeProject.finds the first edge-kind project and reports its key" time="0.0509" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-RemoteComposeDir" executed="True" result="Success" success="True" time="0.5247" asserts="0" description="Get-RemoteComposeDir">
+            <results>
+              <test-case description="prefers remote.composeDir when the project sets one" name="Get-RemoteComposeDir.prefers remote.composeDir when the project sets one" time="0.03" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="falls back to remote.path when composeDir is absent" name="Get-RemoteComposeDir.falls back to remote.path when composeDir is absent" time="0.0257" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="EC2 target helpers" executed="True" result="Success" success="True" time="0.5931" asserts="0" description="EC2 target helpers">
+            <results>
+              <test-case description="composes user@ip" name="EC2 target helpers.composes user@ip" time="0.0263" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="composes the remote home directory from the ssh user" name="EC2 target helpers.composes the remote home directory from the ssh user" time="0.0247" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-LabelFromBuildJsonObj" executed="True" result="Success" success="True" time="0.7138" asserts="0" description="Get-LabelFromBuildJsonObj">
+            <results>
+              <test-case description="formats the label as v{productVersion}.{buildNumber}" name="Get-LabelFromBuildJsonObj.formats the label as v{productVersion}.{buildNumber}" time="0.0479" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns null for a null object rather than a bare 'v.'" name="Get-LabelFromBuildJsonObj.returns null for a null object rather than a bare 'v.'" time="0.0305" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="coerces a string buildNumber to int (JSON types vary)" name="Get-LabelFromBuildJsonObj.coerces a string buildNumber to int (JSON types vary)" time="0.0212" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Read-JsonBuildVersion" executed="True" result="Success" success="True" time="0.8805" asserts="0" description="Read-JsonBuildVersion">
+            <results>
+              <test-case description="parses a valid build-version.json" name="Read-JsonBuildVersion.parses a valid build-version.json" time="0.0537" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns null for a missing file" name="Read-JsonBuildVersion.returns null for a missing file" time="0.0261" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns null for malformed JSON instead of throwing" name="Read-JsonBuildVersion.returns null for malformed JSON instead of throwing" time="0.0346" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-ArchiveExcludes" executed="True" result="Success" success="True" time="1.6303" asserts="0" description="Get-ArchiveExcludes">
+            <results>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.common excludes (every kind)" executed="True" result="Success" success="True" time="0.0998" asserts="0" description="Get-ArchiveExcludes.common excludes (every kind)">
+                <results>
+                  <test-case description="applies the common list even to an unrecognised kind" name="Get-ArchiveExcludes.common excludes (every kind).applies the common list even to an unrecognised kind" time="0.0205" asserts="0" success="True" result="Success" executed="True" />
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.common excludes (every kind).always excludes &lt;_&gt;" executed="True" result="Success" success="True" time="0.0688" asserts="0" description="always excludes &lt;_&gt;">
+                    <results>
+                      <test-case description="always excludes .git" name="Get-ArchiveExcludes.common excludes (every kind).always excludes .git" time="0.031" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes .idea" name="Get-ArchiveExcludes.common excludes (every kind).always excludes .idea" time="0.0046" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes .vscode" name="Get-ArchiveExcludes.common excludes (every kind).always excludes .vscode" time="0.0053" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes .claude" name="Get-ArchiveExcludes.common excludes (every kind).always excludes .claude" time="0.0047" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes tmp" name="Get-ArchiveExcludes.common excludes (every kind).always excludes tmp" time="0.0085" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes nul" name="Get-ArchiveExcludes.common excludes (every kind).always excludes nul" time="0.0053" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes .DS_Store" name="Get-ArchiveExcludes.common excludes (every kind).always excludes .DS_Store" time="0.0047" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="always excludes backups" name="Get-ArchiveExcludes.common excludes (every kind).always excludes backups" time="0.0046" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.python kind" executed="True" result="Success" success="True" time="0.1886" asserts="0" description="Get-ArchiveExcludes.python kind">
+                <results>
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: &lt;_&gt;" executed="True" result="Success" success="True" time="0.0709" asserts="0" description="excludes build/venv cruft: &lt;_&gt;">
+                    <results>
+                      <test-case description="excludes build/venv cruft: .venv" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: .venv" time="0.0229" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: venv" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: venv" time="0.0064" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: __pycache__" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: __pycache__" time="0.005" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: .pytest_cache" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: .pytest_cache" time="0.0085" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: .nicegui" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: .nicegui" time="0.0052" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: archive" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: archive" time="0.0048" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: dist" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: dist" time="0.0062" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: build" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: build" time="0.0066" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="excludes build/venv cruft: htmlcov" name="Get-ArchiveExcludes.python kind.excludes build/venv cruft: htmlcov" time="0.0053" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.vite kind" executed="True" result="Success" success="True" time="0.2351" asserts="0" description="Get-ArchiveExcludes.vite kind">
+                <results>
+                  <test-case description="excludes node_modules and dist" name="Get-ArchiveExcludes.vite kind.excludes node_modules and dist" time="0.0286" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.nextjs kind" executed="True" result="Success" success="True" time="0.2975" asserts="0" description="Get-ArchiveExcludes.nextjs kind">
+                <results>
+                  <test-case description="excludes .next, .vercel and build output" name="Get-ArchiveExcludes.nextjs kind.excludes .next, .vercel and build output" time="0.0261" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="excludes .env in deploys AND backups (nextjs has no ForBackup gate)" name="Get-ArchiveExcludes.nextjs kind.excludes .env in deploys AND backups (nextjs has no ForBackup gate)" time="0.0213" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.deploy-vs-backup gating (python)" executed="True" result="Success" success="True" time="0.4658" asserts="0" description="Get-ArchiveExcludes.deploy-vs-backup gating (python)">
+                <results>
+                  <test-case description="deploy excludes user uploads" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).deploy excludes user uploads" time="0.0182" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="backup KEEPS user uploads" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).backup KEEPS user uploads" time="0.0222" asserts="0" success="True" result="Success" executed="True" />
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).deploy excludes secret &lt;_&gt;" executed="True" result="Success" success="True" time="0.0472" asserts="0" description="deploy excludes secret &lt;_&gt;">
+                    <results>
+                      <test-case description="deploy excludes secret .env" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).deploy excludes secret .env" time="0.0302" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="deploy excludes secret .env.local" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).deploy excludes secret .env.local" time="0.0087" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="deploy excludes secret .env.production" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).deploy excludes secret .env.production" time="0.0083" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).backup KEEPS secret &lt;_&gt;" executed="True" result="Success" success="True" time="0.0676" asserts="0" description="backup KEEPS secret &lt;_&gt;">
+                    <results>
+                      <test-case description="backup KEEPS secret .env" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).backup KEEPS secret .env" time="0.0474" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="backup KEEPS secret .env.local" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).backup KEEPS secret .env.local" time="0.011" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="backup KEEPS secret .env.production" name="Get-ArchiveExcludes.deploy-vs-backup gating (python).backup KEEPS secret .env.production" time="0.0092" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite)" executed="True" result="Success" success="True" time="0.5672" asserts="0" description="Get-ArchiveExcludes.deploy-vs-backup gating (vite)">
+                <results>
+                  <test-case description="still excludes node_modules in a backup (bulk, not a secret)" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).still excludes node_modules in a backup (bulk, not a secret)" time="0.0185" asserts="0" success="True" result="Success" executed="True" />
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).deploy excludes secret &lt;_&gt;" executed="True" result="Success" success="True" time="0.0329" asserts="0" description="deploy excludes secret &lt;_&gt;">
+                    <results>
+                      <test-case description="deploy excludes secret .env" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).deploy excludes secret .env" time="0.021" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="deploy excludes secret .env.local" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).deploy excludes secret .env.local" time="0.007" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="deploy excludes secret .env.production" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).deploy excludes secret .env.production" time="0.0049" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="ParameterizedTest" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).backup KEEPS secret &lt;_&gt;" executed="True" result="Success" success="True" time="0.0386" asserts="0" description="backup KEEPS secret &lt;_&gt;">
+                    <results>
+                      <test-case description="backup KEEPS secret .env" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).backup KEEPS secret .env" time="0.0271" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="backup KEEPS secret .env.local" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).backup KEEPS secret .env.local" time="0.0056" asserts="0" success="True" result="Success" executed="True" />
+                      <test-case description="backup KEEPS secret .env.production" name="Get-ArchiveExcludes.deploy-vs-backup gating (vite).backup KEEPS secret .env.production" time="0.0059" asserts="0" success="True" result="Success" executed="True" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.per-project deploy.exclude" executed="True" result="Success" success="True" time="0.6368" asserts="0" description="Get-ArchiveExcludes.per-project deploy.exclude">
+                <results>
+                  <test-case description="merges the project's own exclude list" name="Get-ArchiveExcludes.per-project deploy.exclude.merges the project's own exclude list" time="0.0201" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="omits nothing when the project has no deploy block" name="Get-ArchiveExcludes.per-project deploy.exclude.omits nothing when the project has no deploy block" time="0.0318" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Get-ArchiveExcludes.result shape" executed="True" result="Success" success="True" time="0.7162" asserts="0" description="Get-ArchiveExcludes.result shape">
+                <results>
+                  <test-case description="contains no duplicates" name="Get-ArchiveExcludes.result shape.contains no duplicates" time="0.024" asserts="0" success="True" result="Success" executed="True" />
+                  <test-case description="returns an array even for a kind with no specific excludes" name="Get-ArchiveExcludes.result shape.returns an array even for a kind with no specific excludes" time="0.0364" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>
