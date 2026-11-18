@@ -83,7 +83,7 @@ Config reference
             "path":       "/home/youruser/stack/myapp",   // deploy target on the server
             "composeDir": "/home/youruser/stack/myapp/docker",  // optional: if compose isn't at path root
             "appService": "app",                          // optional: compose service name override
-            "containerName": "myapp"                      // optional (vite): container to read build-version from
+            "containerName": "myapp"                      // optional (vite): container zdeploy, zec2 and zec2online read build-version from
           },
           "deploy": {
             "zipName": "MyAppDeploy.zip",                 // optional: defaults to <key>Deploy.zip
@@ -110,6 +110,7 @@ Optional blocks do real work:
 - migrations": "prisma" — runs npx prisma migrate deploy inside the app container after each deploy.
 - Compose service-name conventions — handlers assume the app service is named app (python) or web (nextjs) and the database service db. Override the app service with remote.appService.
 - Edge extras — an edge-kind project can set proxyContainer (the nginx container's name, used for reloads and stale-container cleanup) and certsSource (a host path with TLS certs, mounted read-only when validating nginx.conf).
+- Armed origins — a site served through CloudFront can have its edge refuse any request that did not come through CloudFront. zec2, zec2online and zrepair check a site by going straight to the server with a Host header, so for such a hostname they ask on the server instead, through bin/origin-request.sh under the edge project's remote.path. The script is yours to provide: origin-request.sh --armed prints the armed hostnames, one per line, and origin-request.sh [--include|--status] '<host>' '<path>' sends the request to the proxy over loopback, printing the body, the status line with headers and body (--include), or the status code alone (--status). Whatever CloudFront's request carries to get through stays on the server. Which hostnames are armed is asked once per run. No edge project, no script, or no connection means nothing is armed, and every tool behaves as it did before.
 - zmerge — read whenever zmerge will merge. pullAlso lists checkouts with no deploy target (a notes repository, this toolkit itself) that zmerge -Pull keeps current under the same fast-forward-only rules as every project's localRoot. preCommands run before any pull request is read, and the first that fails stops the run with nothing merged. postCommands all run at the end, whatever the merge step did. Each value may be one string or a list.
 
 ---
@@ -202,21 +203,21 @@ zec2 — reachability check
 
     zec2 [<project> ...]        # no args = every project with a domain
 
-For each project: TCP connect, then an HTTP GET with the project's domain as the Host header, then the live build version. Fast "is it up?" answer with firewall hints when it isn't.
+For each project: TCP connect, then an HTTP GET with the project's domain as the Host header, then the live build version. Fast "is it up?" answer with firewall hints when it isn't. The live build is read on the server first (the project's verify block, or for a vite build the stamp inside remote.containerName), with the public endpoint as the fallback. When nothing can be read, the line says which case it is. For an armed origin (#config-reference), both the GET and the version are asked on the server.
 
 zec2online — health check with auto-recovery
 ............................................
 
     zec2online [<project> ...]  # no args = every project with a domain
 
-The heavier sibling: verifies each app over HTTP, compares the local build version against what the server is actually serving (a mismatch means "redeploy?" — or a stale cache), and if a site is down it SSHes in, runs docker compose up -d for the app and the edge proxy, waits up to 30 s, and streams compose logs and system diagnostics if recovery fails.
+The heavier sibling: verifies each app over HTTP, compares the local build version against what the server is actually serving (a mismatch means "redeploy?" — or a stale cache), and if a site is down it SSHes in, runs docker compose up -d for the app and the edge proxy, waits up to 30 s, and streams compose logs and system diagnostics if recovery fails. It reads the live build the way zec2 does, and checks an armed origin (#config-reference) on the server, so a site that refuses direct requests is never read as down and restarted.
 
 zrepair — fix server routing
 ............................
 
     zrepair <project> [<project> ...]
 
-Validates the edge proxy's nginx config (if an edge project is defined), shows each stack's compose status, starts anything that's down, and smoke-tests the live domain. For the "deploy succeeded but the site 502s" class of problem.
+Validates the edge proxy's nginx config (if an edge project is defined), shows each stack's compose status, starts anything that's down, and smoke-tests the live domain (on the server, for an armed origin (#config-reference)). For the "deploy succeeded but the site 502s" class of problem.
 
 zstop.ps1 — stop server stacks
 ..............................
@@ -341,7 +342,7 @@ The convention: each deploy's Docker build increments buildNumber by one, so the
 3. Expose it
 ~~~~~~~~~~~~
 
-Vite / static sites — nothing to do: public/build-version.json is served at /build-version.json, which is where verification looks. (If your edge proxy blocks it from outside, set remote.containerName in config and verification reads it inside the container instead.)
+Vite / static sites — nothing to do: public/build-version.json is served at /build-version.json, which is where verification looks. (If your edge proxy blocks it from outside, set remote.containerName in config and verification, zec2 and zec2online read it inside the container instead.)
 
 Next.js — add an API route at /api/build-version:
 

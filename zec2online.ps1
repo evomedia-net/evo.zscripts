@@ -92,23 +92,34 @@ function Get-RemoteVersionLabel {
     # not public on every project, and the edge answers from whichever vhost
     # matches the Host header -- which is how a check reads another
     # product's version.
+    # For a vite build that is the stamp inside its container: the vite path
+    # used to have only the public probe, so a project whose stamp the edge
+    # does not publish always read as "unknown" (#203).
     $execCmd = Get-ServerSideVersionCommand -Proj $Proj
+    if (-not $execCmd) { $execCmd = Get-ContainerStampCommand -Proj $Proj }
     if ($execCmd -and (Test-Path $PemKey)) {
         try {
             $raw = ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i $PemKey $SshTarget $execCmd
-            $label = Get-LabelFromVersionJson ($raw | Out-String)
+            $label = Get-LabelFromStampText ($raw | Out-String)
             if ($label) { return $label }
         } catch { }
     }
-    try {
-        if ($Proj.kind -eq 'vite') {
-            $r = Invoke-RestMethod -Uri "http://${HostName}/build-version.json" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-            if ($r) { return Get-LabelFromBuildJsonObj $r }
-        } else {
-            $r = Invoke-RestMethod -Uri "http://${HostName}/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-            if ($r -and $r.build_version) { return [string]$r.build_version }
-        }
-    } catch { }
+    $path = if ($Proj.kind -eq 'vite') { '/build-version.json' } else { '/api/build-version' }
+    if ($Proj.domain -and (Test-OriginArmed -HostName $Proj.domain)) {
+        # A hostname the edge has armed refuses a direct request, and writes it
+        # to the gate log as an attempt to reach the origin around CloudFront.
+        # So the public endpoint is asked on the server (#269).
+        $label = Get-OriginBuildLabel -HostName $Proj.domain -Path $path
+        if ($label) { return $label }
+    } else {
+        try {
+            $r = Invoke-RestMethod -Uri "http://${HostName}$path" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
+            if ($Proj.kind -eq 'vite') {
+                $label = Get-LabelFromBuildJsonObj $r
+                if ($label) { return $label }
+            } elseif ($r -and $r.build_version) { return [string]$r.build_version }
+        } catch { }
+    }
     # python fallback: read the recorded version file over SSH
     if ($Proj.kind -eq 'python' -and (Test-Path $PemKey) -and $Proj.remote.path) {
         try {
@@ -145,6 +156,18 @@ function Compare-BuildVersions {
 
 function Test-HttpOnline {
     param([int]$Port, [string]$HostHeader)
+    # A hostname the edge has armed refuses a request that did not come through
+    # CloudFront, and this is one. Asked directly it would read as down, and
+    # the next step here starts the stack. So it is asked on the server (#263).
+    if ($Port -eq 80 -and (Test-OriginArmed -HostName $HostHeader)) {
+        $code = Get-OriginStatus -HostName $HostHeader
+        if ($code -ge 200 -and $code -lt 500) {
+            Write-Host "  HTTP $code - service reachable (asked on the server: this hostname refuses direct requests)." -ForegroundColor DarkGreen
+            return $true
+        }
+        Write-Host "  HTTP $code - no usable answer, asked on the server." -ForegroundColor DarkYellow
+        return $false
+    }
     $tn = Test-NetConnection -ComputerName $HostName -Port $Port -WarningAction SilentlyContinue -InformationLevel Quiet 2>$null
     if (-not $tn) { return $false }
     try {
