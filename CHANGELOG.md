@@ -14,8 +14,46 @@ and the release moves them under its version.
 
 ## Unreleased
 
+### Added
+
+- **`zmerge -Pull` (`-p`), and a `zmerge` block in `zconfig.json`.** After
+  merging, `-Pull` fetches every project's `localRoot` and every
+  `zmerge.pullAlso` checkout at once, then fast-forwards each. It never
+  switches a branch, skips a checkout with commits the remote lacks, and skips
+  a `chore/release-*` checkout, where a release is running.
+  `zmerge.preCommands` run before any pull request is read, and the first
+  that fails stops the run with nothing merged; `postCommands` all run at the
+  end ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+- **`zmerge -Yes` (`-y`) merges without asking**, and implies `-Execute`:
+  answering yes to a prompt is asking it to run
+  ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+- **Paired pull requests land together.** A pull request waits for every open
+  one it names (a link, `org/repo#123`, `repo#123` or a bare `#123`), so a docs
+  change and the code it documents cannot merge one without the other. Both
+  halves of a pair are re-checked right before the first one merges
+  ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+
+### Changed
+
+- **`zmerge` reads every open pull request in the org in one GraphQL query**,
+  and merge status in batches of ten, instead of one call per repository and
+  per pull request ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+
 ### Fixed
 
+- **A signed-out `gh` made `zmerge` stop on "API rate limit exceeded".**
+  GitHub refuses a request that carries no login in its rate-limit wording,
+  and zmerge passed that on. It now asks the free `/rate_limit` endpoint
+  before it reads a single pull request, and stops with
+  `gh is not signed in. Run: gh auth login -h github.com -w`. gh's exit code 4
+  decides, so the different wording gh uses on a GitHub Actions runner counts
+  too ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+- **One bad moment at GitHub ended a `zmerge` run.** A 5xx, GitHub's error
+  page or a reset connection is now retried before it fails the run
+  ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
+- **A `zmerge` hook that left a process running hung `zmerge`.** It waited for
+  every process the hook started, not the hook itself
+  ([#102](https://github.com/evomedia-net/evo.zscripts/pull/102))
 - **Token estimates were about 44% low.** Every script's
   `~N tokens est.` footer, `token-count.ps1` and the ztokens records
   divided output characters by 3.5, a prose rule of thumb that was never
