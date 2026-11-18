@@ -43,6 +43,13 @@
 #   to a Host-header request. Projects with neither are reported as NOT
 #   verified rather than passing on the proxy's default vhost.
 #
+# Verification (edge kind): the proxy serves no stamp, its own included, so
+#   the deploy reads build-version.json back from the deploy directory on the
+#   box and asks docker when the proxy container last started, which must be
+#   after the deploy began (box clock on both sides). Get-EdgeVerifyVerdict in
+#   ZHelpers says what each half proves. A checkout with no build-version.json
+#   is reported as SKIPPED, as for the other kinds.
+#
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Projects = @(),
@@ -1117,6 +1124,48 @@ function Invoke-NextDeploy {
     }
 }
 
+function Wait-VerifyEdgeBuild {
+    param([string]$Key, $Proj, [string]$RemotePath, [object]$PreBuildState, [string]$DeployStartedAt)
+    if (-not $PreBuildState) {
+        Write-Host "`n--- [$Key version] SKIPPED (no local build-version.json - see 'Verification (edge kind)' in the header) ---" -ForegroundColor DarkYellow
+        return
+    }
+    $expectedLabel = Get-LabelFromBuildJsonObj $PreBuildState
+    if ([string]::IsNullOrWhiteSpace($expectedLabel)) {
+        Write-Host "`n--- [$Key version] NOT VERIFIED - build-version.json is present but unreadable ---" -ForegroundColor Yellow
+        Write-Host "  Got: $(($PreBuildState | ConvertTo-Json -Compress -Depth 4))" -ForegroundColor DarkGray
+        return
+    }
+    # The proxy serves no stamp, its own included, so this reads the copy the
+    # upload put beside the compose file and asks docker when the proxy last
+    # started. Get-EdgeVerifyVerdict (ZHelpers) says what each half proves.
+    $pc = $Proj.proxyContainer
+    $also = if ($pc) { "; $pc recreated after $DeployStartedAt" } else { '' }
+    Write-Host "`n--- [$Key] Release verification (expect $expectedLabel on the box$also) ---" -ForegroundColor Cyan
+    $verdict = $null
+    $deadline = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $deadline) {
+        $raw = ''
+        $startedAt = ''
+        try {
+            $raw = @(ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "cat $RemotePath/build-version.json 2>/dev/null") -join "`n"
+            if ($pc) {
+                $startedAt = "$(ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET "sudo docker inspect -f '{{.State.StartedAt}}' $pc 2>/dev/null" | Select-Object -Last 1)".Trim()
+            }
+        }
+        catch { }
+        $verdict = Get-EdgeVerifyVerdict -ExpectedLabel $expectedLabel -RemoteStampJson $raw -ContainerStartedAt $startedAt -DeployStartedAt $DeployStartedAt -CheckContainer:([bool]$pc)
+        if ($verdict.Ok) {
+            $proof = if ($pc) { " and $pc was recreated by this deploy" } else { '' }
+            Write-Host "  PASS - the box carries $($verdict.RemoteLabel)$proof." -ForegroundColor Green
+            return
+        }
+        Start-Sleep -Seconds 3
+    }
+    Write-Host "  WARNING: release not verified within 30s:" -ForegroundColor Yellow
+    foreach ($p in $verdict.Problems) { Write-Host "    - $p" -ForegroundColor Yellow }
+}
+
 function Invoke-EdgeDeploy {
     param([string]$Key, $Proj)
 
@@ -1129,6 +1178,18 @@ function Invoke-EdgeDeploy {
     foreach ($required in @('docker-compose.yml', 'nginx.conf')) {
         if (-not (Test-Path -LiteralPath (Join-Path $root $required))) { throw "Missing $root\$required" }
     }
+
+    # The release this deploy ships, read before anything goes up so the
+    # verification at the end expects what was uploaded. And the box's own
+    # clock, so "was the proxy recreated by THIS deploy" compares two times
+    # from one machine. Remote-side 2>/dev/null, not a local redirect: under
+    # $ErrorActionPreference = 'Stop' a native command's stderr line is fatal.
+    $preBuild = Read-JsonBuildVersion -FilePath (Join-Path $root 'build-version.json')
+    if ($preBuild) {
+        Write-Host "  Release stamp: $(Get-LabelFromBuildJsonObj $preBuild) (verification expects this exact label on the box)" -ForegroundColor Gray
+    }
+    $deployStartedAt = ''
+    try { $deployStartedAt = "$(ssh @SSH_OPTS -i $PEM_KEY $SSH_TARGET 'date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null' | Select-Object -Last 1)".Trim() } catch { }
 
     Invoke-Ec2Step "ensure shared web network" "sudo docker network create web 2>/dev/null || true"
     # -R: docker creates mount-point subdirs (vendor/, fonts/) root-owned when
@@ -1148,9 +1209,8 @@ function Invoke-EdgeDeploy {
     # Content subdirectories the proxy serves (fonts/, vendor/, ...) ship too —
     # only server-side state stays put. Skipping them is how the self-hosted
     # Chart.js and fonts silently never reached prod (charts rendered blank).
-    # .pytest_cache is a local test artifact, already gitignored; it has no
-    # business on the proxy box and only adds noise to the upload log.
-    $skipDirs = @('nginx-logs', '.git', '.pytest_cache')
+    # The exclusions live in ZHelpers, where the tests can pin them.
+    $skipDirs = Get-EdgeSkipDirs
     $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
     foreach ($d in $dirs) {
         Write-Host "  >> uploading $($d.Name)/ (recursive)" -ForegroundColor DarkCyan
@@ -1159,7 +1219,12 @@ function Invoke-EdgeDeploy {
     }
 
     $certMount = if ($Proj.certsSource) { "-v $($Proj.certsSource):/etc/letsencrypt/:ro " } else { "" }
-    Invoke-Ec2Step "validate new nginx.conf" "sudo docker run --rm -v $remotePath/nginx.conf:/etc/nginx/nginx.conf:ro ${certMount}nginx:1.27-alpine nginx -t -c /etc/nginx/nginx.conf"
+    # Plus every directory the compose file mounts under /etc/nginx, so a
+    # literal include (snippets/) validates the way it will load. Directories
+    # and never files - Get-EdgeValidateMounts says why.
+    $dirMounts = (Get-EdgeValidateMounts -ComposeFile (Join-Path $root 'docker-compose.yml') -LocalRoot $root -RemotePath $remotePath) -join ' '
+    if ($dirMounts) { $dirMounts += ' ' }
+    Invoke-Ec2Step "validate new nginx.conf" "sudo docker run --rm -v $remotePath/nginx.conf:/etc/nginx/nginx.conf:ro ${certMount}${dirMounts}nginx:1.27-alpine nginx -t -c /etc/nginx/nginx.conf"
 
     # A container from an older compose project may still hold the proxy name;
     # docker refuses a second create with the same name, so remove it first.
@@ -1171,6 +1236,7 @@ function Invoke-EdgeDeploy {
     }
     Invoke-Ec2Step "fix nginx-logs permissions (if present)" "if [ -d $remotePath/nginx-logs ]; then sudo chmod 777 $remotePath/nginx-logs; sudo chmod 666 $remotePath/nginx-logs/*.log 2>/dev/null || true; fi"
     Invoke-Ec2Step "record deploy stamp" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath)
+    Wait-VerifyEdgeBuild -Key $Key -Proj $Proj -RemotePath $remotePath -PreBuildState $preBuild -DeployStartedAt $deployStartedAt
     Write-Host "--- [Done] Edge proxy deploy finished ---" -ForegroundColor Green
 }
 
@@ -1198,7 +1264,8 @@ function Invoke-StaticDeploy {
 
     # A large media file uploaded in place is served half-written to anyone who
     # requests it mid-copy. Ship the directory to a sibling, then swap it in.
-    $skipDirs = @('.git', '.pytest_cache', 'node_modules')
+    # The exclusions live in ZHelpers, where the tests can pin them.
+    $skipDirs = Get-StaticSkipDirs
     $dirs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $skipDirs -notcontains $_.Name })
     foreach ($d in $dirs) {
         Write-Host "  >> uploading $($d.Name)/ (recursive, staged)" -ForegroundColor DarkCyan
