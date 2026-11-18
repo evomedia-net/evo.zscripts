@@ -1,7 +1,7 @@
 # evomedia.net — https://github.com/evomedia-net/evo.zscripts
 # Created by Kelly Michels · dev@evomedia.net
 # Licensed under the MIT License. See LICENSE.
-# Version: v1.0.0.0.29
+# Version: v1.0.0.0.30
 
 # zversion.ps1 - manage the toolkit version.
 #
