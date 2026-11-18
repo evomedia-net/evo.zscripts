@@ -14,6 +14,8 @@ and the release moves them under its version.
 
 ## Unreleased
 
+## v1.0.0.0.32
+
 ### Fixed
 
 - **An edge config with a literal `include` failed `zdeploy`'s `nginx -t`
