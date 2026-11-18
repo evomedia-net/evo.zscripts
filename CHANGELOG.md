@@ -14,6 +14,8 @@ and the release moves them under its version.
 
 ## Unreleased
 
+## v1.0.0.0.30
+
 ### Added
 
 - **`zmerge -Pull` (`-p`), and a `zmerge` block in `zconfig.json`.** After
