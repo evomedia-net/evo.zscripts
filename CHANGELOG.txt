@@ -14,6 +14,25 @@ and the release moves them under its version.
 Unreleased
 ----------
 
+Fixed
+~~~~~
+
+- **zec2, zec2online and zrepair read a site whose edge refuses direct
+  requests as down.** A site served through CloudFront can have its edge
+  close any request that did not come through CloudFront, and each of these
+  checks a site by going straight to the server with a Host header. So the
+  reachability check failed, the repair smoke test failed, and zec2online
+  went on to restart a healthy stack. For an armed hostname they now ask on
+  the server, through the edge project's bin/origin-request.sh. With no
+  edge project, or no script, nothing is armed and nothing changes
+  (#104 (https://github.com/evomedia-net/evo.zscripts/pull/104))
+- **zec2 and zec2online could never read the live build of a vite site
+  whose edge does not publish its stamp**, and told you to fix a setup that
+  was not broken. They now read the stamp inside remote.containerName first,
+  as zdeploy's own check always has, fall back to the public endpoint, and
+  say which case it is when nothing can be read
+  (#104 (https://github.com/evomedia-net/evo.zscripts/pull/104))
+
 v1.0.0.0.30
 -----------
 

@@ -209,6 +209,158 @@ function Get-Ec2ScpOpts {
     return @(Get-Ec2SshOpts | Where-Object { $_ -ne '-n' })
 }
 
+# ── Hostnames whose origin refuses a direct request (#263) ───────────────
+#
+# A site served through CloudFront can have its edge armed to close the
+# connection on any request for it that did not come through CloudFront.
+# That is the point of it, and it also closes the door on these tools' own
+# checks. Several ask a site how it is by going straight to the server with
+# a Host header: the online check, the reachability check, the repair smoke
+# test. For an armed hostname each gets no answer at all, reads a
+# healthy site as dead, and the online check then starts the stack.
+#
+# So for an armed hostname they ask ON the server instead, through the edge
+# project's bin/origin-request.sh (see "Edge extras" in the README). It sends the request to the proxy over loopback
+# with the Host header and the secret CloudFront sends. The secret is read on
+# the server and never reaches this machine: sending it from here would put it
+# on the internet in plain http.
+#
+# Which hostnames are armed is asked of the server, once per run, not kept in
+# zconfig: the switch is a file on the box that is created and removed by
+# hand, and a copy of that fact here would be wrong the day it changed.
+# Anything that goes wrong asking - no edge project, an edge without the
+# script, no connection - means "nothing is armed", which is every tool's
+# behaviour before this existed.
+
+# Where the script is on the server, or $null when no edge project is configured.
+function Get-OriginRequestScriptPath {
+    $edge = Get-ZEdgeProject
+    if (-not $edge -or -not $edge.Config.remote -or -not $edge.Config.remote.path) { return $null }
+    return ([string]$edge.Config.remote.path).TrimEnd('/') + '/bin/origin-request.sh'
+}
+
+# The lines `origin-request.sh --armed` prints, as hostnames. Anything that is
+# not a hostname is dropped: this is server output, and it decides which
+# requests are sent where.
+function ConvertTo-OriginArmedHosts {
+    param([string[]]$Lines)
+    $hosts = @()
+    foreach ($line in @($Lines)) {
+        $h = "$line".Trim().ToLowerInvariant()
+        if ($h -match '^[a-z0-9][a-z0-9.-]*$' -and $hosts -notcontains $h) { $hosts += $h }
+    }
+    # The comma stops PS 5.1 unrolling a one-element array into a bare string.
+    return ,$hosts
+}
+
+# Forget the answer, so the next call asks the server again. For tests, and
+# for a long-running session that arms or disarms in the middle.
+function Reset-OriginArmedHosts {
+    $script:ZOriginArmedHosts = $null
+}
+
+function Get-OriginArmedHosts {
+    if ($null -ne $script:ZOriginArmedHosts) { return ,$script:ZOriginArmedHosts }
+    $hosts = @()
+    $path = Get-OriginRequestScriptPath
+    if ($path) {
+        try {
+            $cfg = Get-ZConfig
+            $sshOpts = Get-Ec2SshOpts
+            # Function-scoped, like Invoke-Ec2Step: under 'Stop', PS 5.1 turns
+            # any stderr line from ssh into a terminating error.
+            $ErrorActionPreference = 'Continue'
+            $raw = ssh @sshOpts -i $cfg.ec2.pemKey (Get-Ec2Target) "test -f '$path' && bash '$path' --armed" 2>$null
+            if ($LASTEXITCODE -eq 0) { $hosts = ConvertTo-OriginArmedHosts -Lines @($raw) }
+        } catch {
+            $hosts = @()
+        }
+    }
+    $script:ZOriginArmedHosts = $hosts
+    return ,$hosts
+}
+
+function Test-OriginArmed {
+    param([string]$HostName)
+    if ([string]::IsNullOrWhiteSpace($HostName)) { return $false }
+    return (Get-OriginArmedHosts) -contains $HostName.Trim().ToLowerInvariant()
+}
+
+# The command that asks the origin on the server. Pure, so the quoting can be
+# tested without a server. Host and path end up inside a remote shell command,
+# so anything that could be more than a hostname or a path is refused here
+# rather than quoted and hoped about.
+function Get-OriginRequestCommand {
+    param(
+        [Parameter(Mandatory)][string]$HostName,
+        [string]$Path = '/',
+        [ValidateSet('body', 'include', 'status')][string]$Mode = 'body'
+    )
+    $script = Get-OriginRequestScriptPath
+    if (-not $script) { throw "no edge project in zconfig.json, so there is no origin-request.sh to ask through" }
+    if ($HostName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]*$') { throw "not a hostname: $HostName" }
+    if ($Path -notmatch '^/[A-Za-z0-9._~/%+=,:@?&-]*$') { throw "not a path this will send to a shell: $Path" }
+    $flag = switch ($Mode) { 'include' { "--include " } 'status' { "--status " } default { "" } }
+    return "bash '$script' $flag'$HostName' '$Path'"
+}
+
+# Ask the origin on the server. Returns the exit code and the lines printed.
+function Invoke-OriginRequest {
+    param(
+        [Parameter(Mandatory)][string]$HostName,
+        [string]$Path = '/',
+        [ValidateSet('body', 'include', 'status')][string]$Mode = 'body'
+    )
+    $command = Get-OriginRequestCommand -HostName $HostName -Path $Path -Mode $Mode
+    $cfg = Get-ZConfig
+    $sshOpts = Get-Ec2SshOpts
+    $ErrorActionPreference = 'Continue'
+    $lines = @(ssh @sshOpts -i $cfg.ec2.pemKey (Get-Ec2Target) $command 2>$null | ForEach-Object { "$_" })
+    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Lines = $lines }
+}
+
+# The status code the origin answers with, asked on the server. 0 means it
+# gave no answer: the proxy is down, or the request was refused.
+function Get-OriginStatus {
+    param([Parameter(Mandatory)][string]$HostName, [string]$Path = '/')
+    try {
+        $r = Invoke-OriginRequest -HostName $HostName -Path $Path -Mode status
+        $last = @($r.Lines | Where-Object { "$_".Trim() -match '^\d{3}$' }) | Select-Object -Last 1
+        if ($last) { return [int]"$last".Trim() }
+    } catch {
+        # No connection, or no script to ask through: that is "no answer".
+        return 0
+    }
+    return 0
+}
+
+# What `origin-request.sh --include` prints, taken apart: the status, the
+# headers (looked up without regard to case), and the body.
+function ConvertFrom-OriginInclude {
+    param([string[]]$Lines)
+    $status = 0
+    $headers = New-Object 'System.Collections.Hashtable' ([System.StringComparer]::OrdinalIgnoreCase)
+    $body = New-Object System.Collections.Generic.List[string]
+    $inBody = $false
+    foreach ($raw in @($Lines)) {
+        $line = "$raw".TrimEnd("`r")
+        if ($inBody) { $body.Add($line); continue }
+        if ($line -match '^HTTP/\S+\s+(\d{3})') {
+            # A new status line starts a new response: the headers before it
+            # belonged to an interim one (a 100-continue, say) that is over.
+            $status = [int]$Matches[1]
+            $headers.Clear()
+            continue
+        }
+        # The blank line after a final response's headers starts the body.
+        # After an interim one it only separates it from the real response.
+        if ($line -eq '') { if ($status -ge 200) { $inBody = $true }; continue }
+        $colon = $line.IndexOf(':')
+        if ($colon -gt 0) { $headers[$line.Substring(0, $colon).Trim()] = $line.Substring($colon + 1).Trim() }
+    }
+    return [pscustomobject]@{ Status = $status; Headers = $headers; Body = ($body -join "`n") }
+}
+
 # Run one bash command on the server; throw on non-zero exit.
 function Invoke-Ec2Step {
     param(
@@ -635,6 +787,101 @@ function Get-LabelFromBuildJsonObj {
     # a caller sees "no label" instead of a label that matches everything.
     if ([string]::IsNullOrWhiteSpace([string]$obj.productVersion) -and $null -eq $obj.buildNumber) { return $null }
     return "v$([string]$obj.productVersion).$([int]$obj.buildNumber)"
+}
+
+function Get-ContainerStampCommand {
+    <#
+    .SYNOPSIS
+        Shell command that reads a static build's stamp inside its own
+        container, or $null when the project names no container.
+
+    .DESCRIPTION
+        A vite project's build-version.json is baked into the image it is
+        served from. Where the edge does not publish that file - a site that
+        keeps its build private answers 404 for it - the only place it
+        can be read is inside the container, which is what zdeploy's own
+        check does (Wait-VerifyStaticBuild). zec2 and zec2online had only the
+        public probe, so for such a project they could never read a version
+        and said the setup was broken (#203).
+
+        Vite only: it is the one kind whose stamp is a file at this path.
+        The name goes into a shell command, so anything that is not a plain
+        container name is refused.
+    #>
+    param($Proj)
+
+    if (-not $Proj -or [string]$Proj.kind -ne 'vite') { return $null }
+    $name = if ($Proj.remote) { [string]$Proj.remote.containerName } else { '' }
+    if ([string]::IsNullOrWhiteSpace($name)) { return $null }
+    if ($name -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') { return $null }
+    return "sudo docker exec $name cat /usr/share/nginx/html/build-version.json 2>/dev/null"
+}
+
+function Get-LabelFromStampText {
+    <#
+    .SYNOPSIS
+        The build label out of JSON text, whichever of the fleet's shapes it
+        is, or $null.
+
+    .DESCRIPTION
+        A read on the server returns text, and it can be either thing: a
+        version endpoint's answer ({build_version} or {version}) or a
+        build-version.json. Get-LabelFromVersionJson reads the first and
+        Get-LabelFromBuildJsonObj the second; this asks both, the endpoint
+        shape first so its meaning does not change for the projects that
+        already answer that way.
+    #>
+    param([string]$Text)
+
+    $label = Get-LabelFromVersionJson $Text
+    if ($label) { return $label }
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+    try { $obj = $Text.Trim() | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+    return Get-LabelFromBuildJsonObj $obj
+}
+
+function Get-OriginBuildLabel {
+    <#
+    .SYNOPSIS
+        The live build of an ARMED hostname, asked on the server, or $null.
+
+    .DESCRIPTION
+        For a hostname the edge has armed, a direct request is refused, and it
+        is written to the gate log as an attempt to reach the origin around
+        CloudFront - a log these tools have no business being in (#269). So
+        the public endpoint is asked through origin-request.sh instead.
+        Anything that goes wrong is "no label", never an exception.
+    #>
+    param([Parameter(Mandatory)][string]$HostName, [Parameter(Mandatory)][string]$Path)
+
+    try { $r = Invoke-OriginRequest -HostName $HostName -Path $Path } catch { return $null }
+    if (-not $r -or $r.ExitCode -ne 0) { return $null }
+    return Get-LabelFromStampText (@($r.Lines) -join "`n")
+}
+
+function Get-LiveBuildUnreadReason {
+    <#
+    .SYNOPSIS
+        The line to print when a live build could not be read, saying which
+        of the cases it is.
+
+    .DESCRIPTION
+        One message used to cover all of them, and it sent the operator to a
+        README section that could not help when the endpoint was closed on
+        purpose (#203).
+    #>
+    param([bool]$OnServer, [bool]$Armed, [bool]$NotPublished)
+
+    if ($OnServer) {
+        return "(Live build not read: the read on the server returned nothing - is the container running?)"
+    }
+    if ($Armed) {
+        return "(Live build not read: this hostname refuses direct requests, and the project has no read on the server - set remote.containerName or a verify block in zconfig.json)"
+    }
+    if ($NotPublished) {
+        return "(Live build is not published at the edge, and the project has no read on the server - set remote.containerName or a verify block in zconfig.json)"
+    }
+    return "(Could not read live version endpoint - see 'Enabling deploy verification' in README)"
 }
 
 # ── Deploy/backup exclude lists ──────────────────────────────────────────────

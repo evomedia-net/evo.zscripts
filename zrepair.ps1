@@ -79,7 +79,17 @@ fi
 
     if ($proj.domain) {
         Write-Host "  [3/3] Smoke test for https://$($proj.domain)..." -ForegroundColor Yellow
-        try {
+        # A hostname the edge has armed refuses a request that did not come
+        # through CloudFront, and the one below is such a request. It would
+        # fail the smoke test of a site that is up, so ask on the server (#263).
+        if (Test-OriginArmed -HostName $proj.domain) {
+            $status = Get-OriginStatus -HostName $proj.domain
+            if ($status -ge 200 -and $status -lt 500) {
+                Write-Host "    PASS - responded with HTTP $status (asked on the server: this hostname refuses direct requests)" -ForegroundColor Green
+            } else {
+                Write-Host "    FAIL - smoke test failed: the origin gave no usable answer (HTTP $status), asked on the server" -ForegroundColor Red
+            }
+        } else { try {
             $resp   = Invoke-WebRequest -Uri "http://$EC2_IP/" -Headers @{ Host = $proj.domain } -UseBasicParsing -TimeoutSec 15 -MaximumRedirection 5
             $status = [int]$resp.StatusCode
             if ($status -ge 200 -and $status -lt 400) {
@@ -94,7 +104,7 @@ fi
             } else {
                 Write-Host "    FAIL - smoke test failed: $($_.Exception.Message)" -ForegroundColor Red
             }
-        }
+        } }
     } else {
         Write-Host "  [3/3] No domain configured - skipping smoke test." -ForegroundColor DarkYellow
     }

@@ -70,6 +70,25 @@ function Test-Zec2Reachability {
 
     if (-not $tcpOk) { return 1 }
 
+    # A hostname the edge has armed refuses a request that did not come through
+    # CloudFront, and the GET below is one: it would report a healthy site as
+    # unreachable. So that hostname is asked on the server (#263).
+    if ($Port -eq 80 -and (Test-OriginArmed -HostName $HostHeader)) {
+        Write-Host "  [2/2] HTTP GET for $HostHeader, asked on the server (this hostname refuses direct requests)..." -ForegroundColor Yellow
+        $code = Get-OriginStatus -HostName $HostHeader
+        if ($code -ge 200 -and $code -lt 400) {
+            Write-Host "    OK - HTTP $code" -ForegroundColor Green
+        } elseif ($code) {
+            Write-Host "    HTTP response: $code (connection worked; app may redirect or require auth)" -ForegroundColor Yellow
+        } else {
+            Write-Host "    FAIL - the origin gave no answer" -ForegroundColor Red
+            return 1
+        }
+        Write-Host ""
+        Write-Host "  Done ($Label)." -ForegroundColor Cyan
+        return 0
+    }
+
     $uri = "http://${HostName}:${Port}/"
     Write-Host "  [2/2] HTTP GET $uri ..." -ForegroundColor Yellow
     try {
@@ -96,34 +115,56 @@ function Test-Zec2Reachability {
     return 0
 }
 
-# Live build version by kind: python/nextjs expose /api/build-version,
-# vite/static serves /build-version.json.
+# Live build version. The public endpoint differs by kind: python/nextjs
+# expose /api/build-version, vite serves /build-version.json.
+#
+# Asked on the server first, for every kind: the endpoint is not public on
+# every project, and asking the edge answers from whichever vhost matches the
+# Host header. That is the project's verify block, or for a vite build the
+# stamp inside its container - the vite branch used to have only the public
+# probe, so a project whose stamp the edge does not publish could never be
+# read (#203).
+#
+# The public endpoint is the fallback, and never directly for a hostname the
+# edge has armed: that request is refused, and it is written to the gate log
+# as an attempt to reach the origin around CloudFront (#269). It is asked on
+# the server instead.
 function Show-Zec2LiveVersion {
     param($Proj)
     if (-not $Proj.domain) { return }
-    $headers = @{ Host = $Proj.domain }
-    try {
-        if ($Proj.kind -eq 'vite') {
-            $r = Invoke-RestMethod -Uri "http://${HostName}/build-version.json" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-            if ($r) { Write-Host "    Live build: $(Get-LabelFromBuildJsonObj $r)" -ForegroundColor Gray }
+    $path  = if ($Proj.kind -eq 'vite') { '/build-version.json' } else { '/api/build-version' }
+    $label = $null
+
+    $execCmd = Get-ServerSideVersionCommand -Proj $Proj
+    if (-not $execCmd) { $execCmd = Get-ContainerStampCommand -Proj $Proj }
+    $onServer = [bool]($execCmd -and (Test-Path $PemKey))
+    if ($onServer) {
+        try {
+            $raw = (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i $PemKey $SshTarget $execCmd | Out-String)
+            $label = Get-LabelFromStampText $raw
+        } catch { }
+    }
+
+    $armed = Test-OriginArmed -HostName $Proj.domain
+    $notPublished = $false
+    if (-not $label) {
+        if ($armed) {
+            $label = Get-OriginBuildLabel -HostName $Proj.domain -Path $path
         } else {
-            # Container-side first where the project configures it: the
-            # endpoint is not public on every project, and asking the edge
-            # answers from whichever vhost matches the Host header.
-            $execCmd = Get-ServerSideVersionCommand -Proj $Proj
-            $label = $null
-            if ($execCmd -and (Test-Path $PemKey)) {
-                $raw = (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -i $PemKey $SshTarget $execCmd | Out-String)
-                $label = Get-LabelFromVersionJson $raw
+            try {
+                $r = Invoke-RestMethod -Uri "http://${HostName}$path" -Headers @{ Host = $Proj.domain } -TimeoutSec 10 -ErrorAction Stop
+                if ($Proj.kind -eq 'vite') { $label = Get-LabelFromBuildJsonObj $r }
+                elseif ($r -and $r.build_version) { $label = [string]$r.build_version }
+            } catch {
+                $notPublished = [bool]($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 404)
             }
-            if (-not $label) {
-                $r = Invoke-RestMethod -Uri "http://${HostName}/api/build-version" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
-                if ($r -and $r.build_version) { $label = [string]$r.build_version }
-            }
-            if ($label) { Write-Host "    Live build: $label" -ForegroundColor Gray }
         }
-    } catch {
-        Write-Host "    (Could not read live version endpoint - see 'Enabling deploy verification' in README)" -ForegroundColor DarkGray
+    }
+
+    if ($label) {
+        Write-Host "    Live build: $label" -ForegroundColor Gray
+    } else {
+        Write-Host "    $(Get-LiveBuildUnreadReason -OnServer $onServer -Armed $armed -NotPublished $notPublished)" -ForegroundColor DarkGray
     }
 }
 
