@@ -14,6 +14,28 @@ and the release moves them under its version.
 
 ## Unreleased
 
+### Fixed
+
+- **An edge config with a literal `include` failed `zdeploy`'s `nginx -t`
+  check, though the proxy loads it fine.** The check mounted only
+  `nginx.conf` and the certificates, which holds while every include is a
+  wildcard. It now also mounts every directory the compose file mounts under
+  `/etc/nginx`. Directories only: a missing file mount would leave a
+  root-owned directory on the box
+- **A `.claude` folder at the root of an edge or static site shipped to the
+  server.** Its worktrees are complete second checkouts, and its
+  `settings.local.json` holds every command approved with "allow always".
+  Both kinds now leave it at home, as the zipped kinds already did
+
+### Added
+
+- **An edge deploy now checks what it put up.** With a `build-version.json`
+  in the edge folder, it ends by reading the stamp back from the box and
+  asking docker when the proxy container started. It passes only when the
+  box carries the exact label it was cut for and the proxy started after the
+  deploy began, both times from the box's clock. Without a stamp it reports
+  SKIPPED
+
 ## v1.0.0.0.31
 
 ### Fixed

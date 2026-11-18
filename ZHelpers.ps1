@@ -884,6 +884,153 @@ function Get-LiveBuildUnreadReason {
     return "(Could not read live version endpoint - see 'Enabling deploy verification' in README)"
 }
 
+# ── Edge and static deploys (pure; unit-tested in tests/EdgeDeploy.Tests.ps1) ─
+
+function Get-EdgeSkipDirs {
+    # Top-level directories of the edge project that must never reach the
+    # proxy box. The edge deploy scp -r's every OTHER top-level directory, so
+    # this list is the whole of what stays home.
+    #
+    #   nginx-logs      the server's own access logs. Shipping the local copy
+    #                   would bury live logs under a stale one.
+    #   .git            history; nothing on the proxy reads it.
+    #   .pytest_cache   a local test artifact.
+    #   .claude         local tooling. A Claude Code worktree lives at
+    #                   .claude/worktrees/<name> and is a second complete copy
+    #                   of the repo; shipped, it sits on the proxy box as a
+    #                   full second checkout.
+    return @('nginx-logs', '.git', '.pytest_cache', '.claude')
+}
+
+function Get-StaticSkipDirs {
+    # Top-level directories of a static site that never ship. Every top-level
+    # file ships and every other directory is uploaded and swapped in whole,
+    # so this list is the whole of what stays home. .claude for the reason
+    # Get-EdgeSkipDirs gives, and one more: its settings.local.json holds the
+    # full text of every command approved with "allow always".
+    return @('.git', '.pytest_cache', 'node_modules', '.claude')
+}
+
+function Get-EdgeValidateMounts {
+    <#
+      .SYNOPSIS
+        The -v arguments that let the validate step's nginx -t see every
+        directory the proxy will have under /etc/nginx.
+      .DESCRIPTION
+        The validate step runs nginx -t in a throwaway container after the
+        upload and before compose down. Mounting nginx.conf and the
+        certificates alone holds while every include is a wildcard, since a
+        wildcard that matches nothing is no error. A literal include, such as
+        a shared snippets/ file, fails nginx -t on a config the proxy loads
+        fine, half-way through the deploy, with the old proxy still running.
+
+        So this reads the compose file and returns a -v argument for every
+        DIRECTORY it bind-mounts under /etc/nginx, at the path the proxy will
+        have it. Directories only: a file mount whose source is missing makes
+        docker create a root-owned directory in its place, which would plant
+        junk in the remote path for the real compose up to trip over. nginx -t
+        opens includes and certificates, not the files it serves, so
+        directories are all it needs; the certificates stay certsSource's job.
+        A directory the compose file names but the checkout lacks is skipped.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$ComposeFile,
+        [Parameter(Mandatory)][string]$LocalRoot,
+        [Parameter(Mandatory)][string]$RemotePath
+    )
+    $out = @()
+    foreach ($line in (Get-Content -LiteralPath $ComposeFile)) {
+        # "      - ./snippets:/etc/nginx/snippets:ro"  ->  snippets, /etc/nginx/snippets
+        if ($line -match '^\s*-\s+\./([^:]+?)/?:(/etc/nginx/[^:\s]+?)/?(?::[a-z,]+)?\s*$') {
+            $name   = $Matches[1]
+            $target = $Matches[2]
+            if (Test-Path -LiteralPath (Join-Path $LocalRoot $name) -PathType Container) {
+                $out += "-v ${RemotePath}/${name}:${target}:ro"
+            }
+        }
+    }
+    return @($out)
+}
+
+function ConvertTo-UtcInstant {
+    # An RFC 3339 time as a DateTimeOffset, or $null for anything else.
+    # docker inspect reports nine fractional digits, which .NET will not
+    # parse, so the fraction is dropped: whole seconds are all a "did this
+    # start after that" comparison needs.
+    param([AllowEmptyString()][string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+    $t = $Text.Trim() -replace '\.\d+(?=Z$|[+-]\d\d:?\d\d$)', ''
+    try {
+        return [DateTimeOffset]::Parse($t, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)
+    }
+    catch { return $null }
+}
+
+function Get-EdgeVerifyVerdict {
+    <#
+      .SYNOPSIS
+        Whether an edge deploy put up what it was cut for, from what ssh read
+        back. Pure: zdeploy's Wait-VerifyEdgeBuild does the reading.
+      .DESCRIPTION
+        The proxy serves no build stamp, its own included, so an edge deploy
+        cannot ask the live site what it runs. It checks two things instead,
+        each proving what the other cannot:
+
+          the stamp      the deploy directory on the box must carry the exact
+                         label the deploy read from the local build-version.json
+                         before the upload: the upload landed the release.
+          the container  the proxy must have started after the deploy began,
+                         both times from the box's clock: compose up replaced
+                         the proxy. A correct stamp beside a failed compose up
+                         would pass the first check alone.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$ExpectedLabel,
+        [AllowEmptyString()][string]$RemoteStampJson = '',
+        # docker inspect -f '{{.State.StartedAt}}': RFC 3339 with nanoseconds.
+        [AllowEmptyString()][string]$ContainerStartedAt = '',
+        # date -u +%Y-%m-%dT%H:%M:%SZ on the box, read before the upload.
+        [AllowEmptyString()][string]$DeployStartedAt = '',
+        # Off when the project names no proxy container: then there is no
+        # container to ask and the stamp is the whole check.
+        [switch]$CheckContainer
+    )
+    $problems = @()
+
+    $remote = $null
+    if (-not [string]::IsNullOrWhiteSpace($RemoteStampJson)) {
+        # Strict: a deploy error page or a shell error is not a version.
+        try { $remote = $RemoteStampJson | ConvertFrom-Json -ErrorAction Stop } catch { $remote = $null }
+    }
+    $remoteLabel = Get-LabelFromBuildJsonObj $remote
+    if ([string]::IsNullOrWhiteSpace($remoteLabel)) {
+        $problems += 'no readable build-version.json in the deploy directory on the box - the upload did not land the stamp'
+    }
+    elseif ($remoteLabel -ne $ExpectedLabel) {
+        $problems += "the box carries $remoteLabel, expected $ExpectedLabel"
+    }
+
+    if ($CheckContainer) {
+        $started = ConvertTo-UtcInstant $ContainerStartedAt
+        $began   = ConvertTo-UtcInstant $DeployStartedAt
+        if (-not $started) {
+            $problems += 'cannot tell when the proxy container started (docker inspect gave nothing) - is it running?'
+        }
+        elseif (-not $began) {
+            $problems += 'the deploy did not record when it began on the box, so the container restart cannot be checked'
+        }
+        elseif ($started -lt $began) {
+            $problems += ('the proxy container started at {0:u}, before this deploy began at {1:u} - it was not recreated' -f $started.UtcDateTime, $began.UtcDateTime)
+        }
+    }
+
+    return [pscustomobject]@{
+        Ok          = ($problems.Count -eq 0)
+        RemoteLabel = $remoteLabel
+        Problems    = @($problems)
+    }
+}
+
 # ── Deploy/backup exclude lists ──────────────────────────────────────────────
 
 # Top-level excludes for a project archive: common junk + kind-specific dirs +
