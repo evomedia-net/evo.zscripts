@@ -95,6 +95,11 @@ Set the `ZCONFIG` environment variable to point at a config somewhere else — h
         "exclude": ["docs", "big-data-folder"]        // optional: extra top-level dirs/files to skip
       }
     }
+  },
+  "zmerge": {                                         // optional: zmerge's own settings
+    "pullAlso":     ["C:\\dev\\notes"],               //   checkouts with no deploy target that zmerge -Pull keeps current
+    "preCommands":  ["<a command>"],                  //   run before the pull requests are read; a failure stops the run
+    "postCommands": ["<a command>"]                   //   run at the end, whatever the merge step did
   }
 }
 ```
@@ -109,6 +114,7 @@ Optional blocks do real work:
 - **`migrations": "prisma"`** — runs `npx prisma migrate deploy` inside the app container after each deploy.
 - **Compose service-name conventions** — handlers assume the app service is named `app` (python) or `web` (nextjs) and the database service `db`. Override the app service with `remote.appService`.
 - **Edge extras** — an `edge`-kind project can set `proxyContainer` (the nginx container's name, used for reloads and stale-container cleanup) and `certsSource` (a host path with TLS certs, mounted read-only when validating `nginx.conf`).
+- **`zmerge`** — read whenever `zmerge` will merge. `pullAlso` lists checkouts with no deploy target (a notes repository, this toolkit itself) that `zmerge -Pull` keeps current under the same fast-forward-only rules as every project's `localRoot`. `preCommands` run before any pull request is read, and the first that fails stops the run with nothing merged. `postCommands` all run at the end, whatever the merge step did. Each value may be one string or a list.
 
 ---
 
@@ -136,7 +142,7 @@ The `.cmd` wrappers are the everyday interface. Every command takes one or more 
 | `zchecksums [-Update]` | Verify every script against `CHECKSUMS.txt` (SHA-256) |
 | `zversion [bump \| bump-stage <s> \| set <v>]` | Show or advance the toolkit version (stamps every header) |
 | `zrelease [-Verify]` | Package the current version as `releases/zscripts-<version>.zip` + `.sha256` |
-| `zmerge [-Execute\|-e]` | Merge every pull request across the org that is genuinely ready |
+| `zmerge [-Execute\|-e] [-Yes\|-y] [-Pull\|-p]` | Merge every pull request across the org that is genuinely ready; `-p` then fast-forwards every local checkout |
 | `zpull [-Execute\|-e]` | `zmerge`, then bring every affected local checkout current |
 
 ### Local development
@@ -313,6 +319,21 @@ zsetup_mail.ps1 -domain yourdomain.com [-mailHost mail.yourdomain.com]
 ```
 
 Creates `admin@` and `noreply@` mailboxes (with generated passwords) in a docker-mailserver container on the server, then prints the exact DNS records (MX, SPF, A) and SMTP/IMAP settings to plug into your app.
+
+#### `zmerge` — merge the org's ready pull requests
+
+```
+zmerge [-Execute|-e] [-Yes|-y] [-Pull|-p] [-Repo <name>] [-Only <n>,<n>] [-Exclude <n>]
+```
+
+With no switch it is a dry run: every open pull request in the org, with its verdict. `-Execute` merges the ones that are genuinely ready, after a prompt; `-Yes` skips the prompt and implies `-Execute`. It re-checks each pull request right before merging it, because GitHub computes mergeability asynchronously and merging one can conflict another, and it merges nothing that is not `MERGEABLE`/`CLEAN` at that moment.
+
+- **Paired pull requests land together.** A pull request waits for every open one it names (a link, `org/repo#123`, `repo#123`, or a bare `#123`), so a docs change and the code it documents cannot merge one without the other. Naming each in the other makes a pair.
+- **`-Pull`** merges, then fast-forwards every project's `localRoot` and every `zmerge.pullAlso` checkout. It never switches a branch, never touches a checkout that has commits the remote lacks, and skips a `chore/release-*` checkout, where a release is running.
+- **A signed-out `gh` is named as that.** Before it reads a single pull request, zmerge asks GitHub's free `/rate_limit` endpoint whether `gh` has a working login. With none, it stops with `gh is not signed in. Run: gh auth login -h github.com -w`, instead of passing on GitHub's "API rate limit exceeded" wording for requests that carry no login.
+- **One query, not one per repository.** Every open pull request in the org comes back in one GraphQL query, merge status in batches of ten, and a transient GitHub error (a 5xx, a reset connection) is retried before it ends the run.
+
+It never bumps a version or deploys: the follow-up commands are printed instead.
 
 #### `ZHelpers.ps1` — shared library
 

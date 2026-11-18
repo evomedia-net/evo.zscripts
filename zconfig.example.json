@@ -129,5 +129,13 @@
         "path": "/home/YOUR_SSH_USER/stack/analytics"
       }
     }
+  },
+  "zmerge": {
+    "_comment": "Optional. pullAlso: checkouts with no deploy target that 'zmerge -Pull' keeps current, fast-forward only. preCommands run before any pull request is read (the first failure stops the run, nothing merged); postCommands all run at the end. Each may be one string or a list.",
+    "pullAlso": [
+      "C:\\YourRoot\\notes"
+    ],
+    "preCommands": [],
+    "postCommands": []
   }
 }
