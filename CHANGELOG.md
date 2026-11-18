@@ -14,6 +14,8 @@ and the release moves them under its version.
 
 ## Unreleased
 
+## v1.0.0.0.31
+
 ### Fixed
 
 - **`zec2`, `zec2online` and `zrepair` read a site whose edge refuses direct
