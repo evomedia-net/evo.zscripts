@@ -171,6 +171,8 @@ zkill <project> [<project> ...] | all  [-Port N] [-KillAll]
 
 Finds whatever is LISTENING on each project's dev port and kills it — along with its whole process tree, children first. That matters for auto-reloading servers (uvicorn/watchfiles, nodemon): their worker processes inherit the listening socket and would otherwise survive as orphans, serving stale code. `-KillAll` also hunts down stray `node`/`python`/`next-server` processes whose command line references the project folder. `all` targets every project that has a dev port — the one-shot "stop everything I've got running locally".
 
+A process counts as stopped only once it is gone. When Windows refuses `Stop-Process`, zkill tries `taskkill /F`, which can use an admin window's debug privilege. If the process is still running after that, zkill prints Windows' reason from both (for example "Access is denied"), says so when the process runs in session 0 or the window is not elevated, ends "Kill incomplete." and exits 1, so `zrestart` stops rather than starting a second server on a port that is still taken.
+
 ```powershell
 zkill viteapp                # free the port
 zkill pyapp viteapp nextapp  # nuke everything
@@ -505,6 +507,7 @@ The high-value case is the deploy-vs-backup split: **deploys must exclude `.env`
 - **Deploy aborts with "less than 1.5 GB free"** — the server's disk is full even after auto-pruning. Grow the volume, or SSH in and run `sudo docker system prune -af`.
 - **Deploy ends with a version WARNING** — the new build isn't what's being served: check the Docker build output, and see [Enabling deploy verification](#enabling-deploy-verification) if you haven't set it up.
 - **Port already in use when starting** — `zkill <project>` first, or just use `zrestart`.
+- **zkill says a process "could not be stopped"** — Windows refused both `Stop-Process` and `taskkill /F`, and the reason is printed beneath it. Run zkill again from an admin PowerShell. A process in session 0 was started by a service or a boot task, not from your own sign-in.
 
 ## License
 

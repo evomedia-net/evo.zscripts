@@ -14,6 +14,22 @@ and the release moves them under its version.
 Unreleased
 ----------
 
+Fixed
+~~~~~
+
+- zkill no longer counts a process Windows refused to stop as stopped.
+  A branch review server started in session 0, by a Remote Control boot
+  session, refused Stop-Process with "Access is denied", even from an admin
+  window. -ErrorAction SilentlyContinue hid the refusal and the count went
+  up anyway, so zkill printed "1 process(es) stopped" over a server that went
+  on answering. taskkill /F in the same window then stopped it. A refused
+  Stop-Process now falls back to taskkill /F, which can use an admin
+  window's debug privilege, and a process counts as stopped only once it is
+  gone. One that still will not stop is printed with Windows' reason from
+  both, plus a note when it runs in session 0 and when the window is not
+  elevated. zkill then ends "Kill incomplete." and exits 1, so zrestart
+  does not start a second server on a port that is still taken.
+
 v1.0.0.0.32
 -----------
 

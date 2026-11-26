@@ -49,6 +49,7 @@ if ($Projects -contains 'all') {
     Write-Host "Killing dev servers for: $($Projects -join ', ')" -ForegroundColor Cyan
 }
 
+$anyFailed = $false
 foreach ($key in $Projects) {
     $proj = Get-ZProject -Key $key
     $devPort = if ($Port -gt 0) { $Port } elseif ($proj.ports -and $proj.ports.dev) { [int]$proj.ports.dev } else { 0 }
@@ -56,26 +57,38 @@ foreach ($key in $Projects) {
     Write-Host ""
     Write-Host "=== zkill ($($proj.label)) ===" -ForegroundColor Cyan
 
-    $killed = 0
+    $tally = New-StopTally
     if ($devPort -gt 0) {
         Write-Host "Port: $devPort" -ForegroundColor DarkGray
-        $killed += Stop-ListenersOnPort -Port $devPort
+        Add-StopTally $tally (Stop-ListenersOnPort -Port $devPort)
     } else {
         Write-Host "No dev port configured for '$key' - skipping port kill." -ForegroundColor DarkYellow
     }
 
     if ($KillAll -and $proj.localRoot) {
-        $killed += Stop-ProjectProcesses -ProjectRoot $proj.localRoot
+        Add-StopTally $tally (Stop-ProjectProcesses -ProjectRoot $proj.localRoot)
     }
 
-    if ($killed -gt 0) {
-        Write-Host "  $killed process(es) stopped" -ForegroundColor Magenta
-    } else {
+    # Only what actually went counts as stopped (#292).
+    if ($tally.Stopped -gt 0) {
+        Write-Host "  $($tally.Stopped) process(es) stopped" -ForegroundColor Magenta
+    }
+    if ($tally.Failed -gt 0) {
+        Write-Host "  $($tally.Failed) process(es) could not be stopped and are still running" -ForegroundColor Red
+        $anyFailed = $true
+    }
+    if ($tally.Stopped -eq 0 -and $tally.Failed -eq 0) {
         Write-Host "  Nothing to kill" -ForegroundColor Green
     }
 }
 
 Write-Host ""
+# Non-zero, so zrestart stops instead of starting a second server on a port
+# that is still taken.
+if ($anyFailed) {
+    Write-Host "Kill incomplete." -ForegroundColor Red
+    Stop-ZTracking; exit 1
+}
 Write-Host "Kill complete." -ForegroundColor Cyan
 Stop-ZTracking
 } finally { Stop-ZTracking -IfActive }
