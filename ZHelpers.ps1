@@ -1227,28 +1227,99 @@ function New-ProjectArchive {
 
 # ── Process killers ──────────────────────────────────────────────────────────
 
+# Every killer below returns a tally, not a bare count: how many processes
+# went, and how many Windows would not let go (#292). A bare count was
+# incremented whether or not the kill worked, so a refused kill printed
+# "1 process(es) stopped" over a server that was still answering.
+function New-StopTally { [pscustomobject]@{ Stopped = 0; Failed = 0 } }
+
+function Add-StopTally {
+    param($Tally, $More)
+    $Tally.Stopped += $More.Stopped
+    $Tally.Failed  += $More.Failed
+}
+
+# Gone within the timeout? 0 checks once and does not wait.
+function Test-ProcessGone {
+    param([int]$TargetPid, [int]$TimeoutMs = 3000)
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
+    while ($true) {
+        if (-not (Get-Process -Id $TargetPid -ErrorAction SilentlyContinue)) { return $true }
+        if ([DateTime]::UtcNow -ge $deadline) { return $false }
+        Start-Sleep -Milliseconds 100
+    }
+}
+
+function Test-IsElevated {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return ([Security.Principal.WindowsPrincipal]$id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# taskkill /F, keeping its own message. Run through cmd so its stderr comes
+# back as text: Windows PowerShell 5.1 turns a native command's stderr into
+# error records, and the z-scripts run with $ErrorActionPreference = 'Stop'.
+function Invoke-TaskKill {
+    param([int]$TargetPid)
+    $out = (cmd.exe /d /c "taskkill /PID $TargetPid /F 2>&1" | Out-String).Trim()
+    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($out -replace '\s*\r?\n\s*', ' ') }
+}
+
+# Stop one process; when it will not stop, say why in Windows' own words.
+# Stop-Process first. When that is refused, taskkill /F: in an admin window it
+# uses the debug privilege that Stop-Process never asks for, so it can stop a
+# process another sign-in owns. On 2026-11-26 a review server started by the
+# Remote Control boot task (session 0) refused Stop-Process from an admin
+# window, and taskkill /F in the same window stopped it at once.
+# Counted as stopped only once the process is actually gone.
+function Stop-OneProcess {
+    param([int]$TargetPid, [string]$Name)
+    $reason = $null
+    try {
+        Stop-Process -Id $TargetPid -Force -ErrorAction Stop
+    } catch {
+        $reason = $_.Exception.Message
+    }
+    # Refused outright: no point waiting for it to exit.
+    if (Test-ProcessGone -TargetPid $TargetPid -TimeoutMs $(if ($reason) { 0 } else { 3000 })) { return $true }
+    $tk = Invoke-TaskKill -TargetPid $TargetPid
+    if (Test-ProcessGone -TargetPid $TargetPid -TimeoutMs $(if ($tk.ExitCode -eq 0) { 3000 } else { 0 })) {
+        Write-Host "    Stop-Process was refused; taskkill /F stopped it" -ForegroundColor DarkYellow
+        return $true
+    }
+    Write-Host "  Could not stop PID $TargetPid ($Name) - it is still running" -ForegroundColor Red
+    if ($reason)    { Write-Host "    Stop-Process: $reason" -ForegroundColor Red }
+    if ($tk.Output) { Write-Host "    taskkill: $($tk.Output)" -ForegroundColor Red }
+    $proc = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
+    if ($proc -and $proc.SessionId -eq 0) {
+        Write-Host "    It runs in session 0: a service or a boot task started it (the Remote Control boot server starts sessions there)." -ForegroundColor Yellow
+    }
+    if (-not (Test-IsElevated)) {
+        Write-Host "    This window is not elevated. Run zkill again from an admin PowerShell." -ForegroundColor Yellow
+    }
+    return $false
+}
+
 # Kill a process and all of its descendants (children first). Needed for
 # reloading servers (uvicorn/watchfiles, nodemon): workers inherit the
 # listening socket and would keep serving stale code if orphaned.
 function Stop-ProcessTree {
     param([int]$TargetPid)
-    $killed = 0
+    $tally = New-StopTally
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$TargetPid" -ErrorAction SilentlyContinue)
     foreach ($child in $children) {
-        $killed += Stop-ProcessTree -TargetPid $child.ProcessId
+        Add-StopTally $tally (Stop-ProcessTree -TargetPid $child.ProcessId)
     }
     $proc = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
     if ($proc) {
         Write-Host "  Killing PID $TargetPid ($($proc.ProcessName))" -ForegroundColor Red
-        Stop-Process -Id $TargetPid -Force -ErrorAction SilentlyContinue
-        $killed++
+        if (Stop-OneProcess -TargetPid $TargetPid -Name $proc.ProcessName) { $tally.Stopped++ } else { $tally.Failed++ }
     }
-    return $killed
+    return $tally
 }
 
 function Stop-ListenersOnPort {
     param([int]$Port)
-    $killed = 0
+    $tally = New-StopTally
     $listeners = netstat -ano | Select-String ":$Port\s+.*LISTENING"
     if ($listeners) {
         $seen = @{}
@@ -1260,35 +1331,35 @@ function Stop-ListenersOnPort {
                 $proc = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
                 if ($proc) {
                     Write-Host "  Killing PID $targetPid ($($proc.ProcessName)) on port $Port (and children)" -ForegroundColor Red
-                    $killed += Stop-ProcessTree -TargetPid $targetPid
+                    Add-StopTally $tally (Stop-ProcessTree -TargetPid $targetPid)
                 }
             }
         }
     } else {
         Write-Host "  No LISTENING process on port $Port" -ForegroundColor DarkGray
     }
-    return $killed
+    return $tally
 }
 
 # Kill stray runtime processes (node, python, next-server) whose command line
 # references the given project root. Safer than killing every node/python on the box.
 function Stop-ProjectProcesses {
     param([Parameter(Mandatory)][string]$ProjectRoot)
-    $killed = 0
+    $tally = New-StopTally
     foreach ($name in @("node", "python", "next-server")) {
         $found = Get-Process -Name $name -ErrorAction SilentlyContinue
         foreach ($p in $found) {
-            try {
-                $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId = $($p.Id)" -ErrorAction SilentlyContinue).CommandLine
-                if ($cmd -and $cmd -like "*$ProjectRoot*") {
-                    Write-Host "  Killing $name PID $($p.Id) (references $ProjectRoot)" -ForegroundColor Red
-                    Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-                    $killed++
-                }
-            } catch {}
+            # A process whose command line cannot be read is not known to be
+            # this project's, so it is left alone, as before.
+            $cmd = $null
+            try { $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId = $($p.Id)" -ErrorAction SilentlyContinue).CommandLine } catch {}
+            if ($cmd -and $cmd -like "*$ProjectRoot*") {
+                Write-Host "  Killing $name PID $($p.Id) (references $ProjectRoot)" -ForegroundColor Red
+                if (Stop-OneProcess -TargetPid $p.Id -Name $name) { $tally.Stopped++ } else { $tally.Failed++ }
+            }
         }
     }
-    return $killed
+    return $tally
 }
 
 # ── MOTD (message of the day) ────────────────────────────────────────────────
