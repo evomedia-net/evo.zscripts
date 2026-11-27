@@ -104,6 +104,56 @@ function Get-ZEdgeProject {
     return $null
 }
 
+# ── Containers left on a replaced single-file mount ───────────────────────────
+#
+# A docker stack can bind-mount a single FILE (the mail server mounts
+# config/postfix-virtual.cf and config/postfix-relaymap.cf that way). Such a
+# mount is pinned to the file that was there when the container started. A
+# deploy unzips a new copy over it - a new file, a new inode - and
+# `docker compose up -d` recreates a container only when docker-compose.yml
+# itself changed, so the running container keeps reading the OLD file while
+# the deploy reports success. That once left a newly added mail alias
+# refused after a deploy that reported success: the host's file and the
+# container's had different inodes, until a manual `docker restart`.
+#
+# So after compose, every container of the stack is checked: for each bind
+# mount whose source is a file, the host's inode against the one the
+# container sees. A container that differs is restarted, and says which file
+# made it. A file edited in place keeps its inode, and a container compose
+# just recreated already mounts the new file, so neither restarts.
+#
+# Shipped base64-encoded: the script needs double quotes, and PowerShell 5.1
+# mangles embedded double quotes in a native command's arguments. The encoded
+# form is letters, digits, + / = only.
+function Get-RestartStaleMountsBash {
+    param([Parameter(Mandatory)][string]$RemotePath)
+    $script = @'
+cd '__REMOTE__' || exit 1
+fail=0
+for c in $(sudo docker compose ps -q); do
+  n=$(sudo docker inspect -f '{{.Name}}' "$c"); n=${n#/}
+  stale=$(sudo docker inspect -f '{{range .Mounts}}{{if eq .Type "bind"}}{{.Source}}|{{.Destination}}{{println}}{{end}}{{end}}' "$c" |
+    while IFS='|' read -r src dst; do
+      [ -n "$src" ] || continue
+      sudo test -f "$src" || continue
+      h=$(sudo stat -c %i "$src" 2>/dev/null) || continue
+      i=$(sudo docker exec "$c" stat -c %i "$dst" 2>/dev/null) || continue
+      [ "$h" != "$i" ] && printf '%s ' "$dst"
+    done)
+  if [ -n "$stale" ]; then
+    echo "$n reads the replaced copy of: ${stale}- restarting it"
+    if sudo docker restart "$n" > /dev/null; then echo "$n restarted"; else echo "$n: restart FAILED"; fail=1; fi
+  else
+    echo "$n: every single-file mount is current"
+  fi
+done
+exit $fail
+'@
+    $script = ($script.Replace('__REMOTE__', $RemotePath)) -replace "`r`n", "`n"
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($script))
+    return "echo $b64 | base64 -d | bash"
+}
+
 # Remote compose directory for a project: remote.composeDir if set, else remote.path.
 # How a docker stack gets its images: built here, or pulled from a registry.
 #

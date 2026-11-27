@@ -16,6 +16,16 @@ and the release moves them under its version.
 
 ### Fixed
 
+- **A docker deploy restarts any container still reading the old copy of a
+  single-file mount.** Such a mount stays on the file that was there when the
+  container started. The deploy unzips a new copy (a new inode), and
+  `docker compose up -d` recreates a container only when `docker-compose.yml`
+  changed, so a config change to a singly mounted file was deployed and not
+  applied. After compose, each container's single-file bind mounts are
+  compared by inode, host against container, and a container that differs is
+  restarted with the file named. A file edited in place, or a container
+  compose just recreated, is left alone. The script travels base64-encoded,
+  past PowerShell 5.1's quoting.
 - **`zkill` no longer counts a process Windows refused to stop as stopped.**
   A branch review server started in session 0, by a Remote Control boot
   session, refused `Stop-Process` with "Access is denied", even from an admin
