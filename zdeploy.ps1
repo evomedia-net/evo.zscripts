@@ -1328,6 +1328,10 @@ function Invoke-DockerDeploy {
     $imageStep = Get-DockerImageStep -Proj $Proj -RemotePath $remotePath
     Invoke-Ec2Step $imageStep.Label $imageStep.Command
     Invoke-Ec2Step "docker compose up -d" "cd $remotePath && sudo docker compose up -d"
+    # compose recreates a container only when docker-compose.yml changed; one
+    # that bind-mounts a single file the unzip just replaced is still reading
+    # the old copy. Restart exactly those.
+    Invoke-Ec2Step "restart containers left on a replaced single-file mount" (Get-RestartStaleMountsBash -RemotePath $remotePath)
 
     Invoke-Ec2PostDeployCleanup -Label $Key
     Invoke-Ec2Step "record deploy stamp" (Get-RecordDeployBash -Proj $Proj -RemotePath $remotePath)
